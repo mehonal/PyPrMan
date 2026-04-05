@@ -1,0 +1,24 @@
+{% extends "base_auth.html" %}
+{% block title %}Register - PyPrMan{% endblock %}
+{% block content %}
+<h2>Create Account</h2>
+<form action="{{ url_for('security.register') }}" method="POST" novalidate>
+    {{ register_user_form.hidden_tag() }}
+    <div class="pp-form-group">
+        <label class="pp-form-label" for="email">Email</label>
+        {{ register_user_form.email(class="pp-input", id="email", autofocus=true, autocomplete="email") }}
+    </div>
+    <div class="pp-form-group">
+        <label class="pp-form-label" for="password">Password</label>
+        {{ register_user_form.password(class="pp-input", id="password", autocomplete="new-password") }}
+    </div>
+    <div class="pp-form-group">
+        <label class="pp-form-label" for="password_confirm">Confirm Password</label>
+        {{ register_user_form.password_confirm(class="pp-input", id="password_confirm", autocomplete="new-password") }}
+    </div>
+    {{ register_user_form.submit(class="pp-btn pp-btn-primary pp-btn-touch", style="width:100%;") }}
+</form>
+<p style="text-align:center; margin-top:16px; font-size:0.8125rem;">
+    <a href="{{ url_for('security.login') }}">Already have an account?</a>
+</p>
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} - PyPrMan{% endblock %}
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('projects.list_projects') }}">Projects</a></li>
+    <li class="breadcrumb-item active">{{ project.key }}</li>
+</ol>
+{% endblock %}
+{% block actions %}
+<button class="pp-btn pp-btn-primary pp-btn-sm" onclick="ppModal.createItem('{{ project.key }}')">
+    <i class="bi bi-plus-lg"></i> New Item
+</button>
+{% if membership.role in ['owner', 'admin'] %}
+<a href="{{ url_for('projects.edit_project', key=project.key) }}" class="pp-btn pp-btn-secondary pp-btn-sm">
+    <i class="bi bi-pencil"></i>
+</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1 style="font-size:1.5rem; margin-bottom:4px;">
+        <span class="pp-badge pp-badge-primary" style="font-size:0.75rem; vertical-align:middle;">{{ project.key }}</span>
+        {{ project.name }}
+    </h1>
+    {% if project.description %}
+    <p style="color:var(--pp-text-secondary); font-size:0.875rem; margin:0;">{{ project.description }}</p>
+    {% endif %}
+</div>
+
+<div class="pp-quick-nav mb-4">
+    <a href="{{ url_for('board.project_board', key=project.key) }}">
+        <i class="bi bi-kanban"></i><span>Board</span>
+    </a>
+    <a href="{{ url_for('backlog.project_backlog', key=project.key) }}">
+        <i class="bi bi-list-task"></i><span>Backlog</span>
+    </a>
+    <a href="{{ url_for('epics.list_epics', key=project.key) }}">
+        <i class="bi bi-collection"></i><span>Epics</span>
+    </a>
+    {% if membership.role in ['owner', 'admin'] %}
+    <a href="{{ url_for('settings.manage_statuses', key=project.key) }}">
+        <i class="bi bi-gear"></i><span>Settings</span>
+    </a>
+    {% endif %}
+</div>
+
+<div class="pp-card">
+    <div class="pp-card-header">
+        Recent Work Items
+        <span style="margin-left:auto; font-size:0.75rem; color:var(--pp-text-muted);">{{ project.work_items|length }} total</span>
+    </div>
+    <div class="pp-card-body p-0">
+        {% for item in project.work_items[:20] %}
+        <a href="{{ url_for('work_items.detail', key=project.key, item_key=item.item_key) }}" class="pp-list-item">
+            <span class="item-key">{{ item.item_key }}</span>
+            <i class="{{ item.item_type.icon }}" style="color:{{ item.item_type.color }}; font-size:0.875rem;" aria-hidden="true"></i>
+            <span class="item-title">{{ item.title }}</span>
+            <span class="item-meta">
+                <span class="pp-status-dot" style="background:{{ item.status.color }}" title="{{ item.status.name }}"></span>
+                <i class="{{ item.priority_icon }}" style="color:{{ item.priority_color }}; font-size:0.75rem;" title="{{ item.priority }}"></i>
+                {% if item.story_points is not none %}<span class="pp-sp-badge" title="Story points">{{ item.story_points }}</span>{% endif %}
+                {% if item.assignee %}
+                <span class="pp-badge pp-badge-muted">{{ item.assignee.display_name[:8] }}</span>
+                {% endif %}
+            </span>
+        </a>
+        {% endfor %}
+        {% if not project.work_items %}
+        <div class="pp-empty" style="padding:32px;">
+            <p style="margin:0;">No work items yet.</p>
+            <button class="pp-btn pp-btn-primary pp-btn-sm" onclick="ppModal.createItem('{{ project.key }}')" style="margin-top:8px;">Create one</button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

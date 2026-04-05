@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}{% if project %}Board - {{ project.key }}{% else %}Board{% endif %} - PyPrMan{% endblock %}
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0">
+    {% if project %}
+    <li class="breadcrumb-item"><a href="{{ url_for('projects.detail', key=project.key) }}">{{ project.key }}</a></li>
+    <li class="breadcrumb-item active">Board</li>
+    {% else %}
+    <li class="breadcrumb-item active">Board</li>
+    {% endif %}
+</ol>
+{% endblock %}
+{% block actions %}
+{% if is_aggregated and projects %}
+<select class="pp-select" style="width:auto; font-size:0.8125rem;" onchange="location.href='?project_id='+this.value">
+    <option value="">All Projects</option>
+    {% for p in projects %}
+    <option value="{{ p.id }}" {% if filter_project_id == p.id %}selected{% endif %}>{{ p.key }} - {{ p.name }}</option>
+    {% endfor %}
+</select>
+{% endif %}
+{% if project %}
+<button class="pp-btn pp-btn-primary pp-btn-sm" onclick="ppModal.createItem('{{ project.key }}')">
+    <i class="bi bi-plus-lg"></i> New Item
+</button>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="kanban-board" role="region" aria-label="Kanban board">
+    {% for col_key, col in columns.items() %}
+    <div class="kanban-column" data-status-id="{{ col.status.id if col.status else col_key }}" role="list" aria-label="{{ col.status.name if col.status else col.label }} column">
+        <div class="kanban-column-header">
+            <span class="pp-status-dot" style="background:{{ col.status.color if col.status else '#6b7280' }}"></span>
+            {{ col.status.name if col.status else col.label }}
+            <span class="pp-badge pp-badge-muted" style="margin-left:auto;">{{ col.work_items|length }}</span>
+            {% if project %}
+            <button class="pp-btn pp-btn-ghost pp-btn-sm" style="padding:2px 6px; font-size:0.75rem;" onclick="ppModal.createItem('{{ project.key }}', {status_id: {{ col.status.id if col.status else 0 }}})" title="Add item to this column">
+                <i class="bi bi-plus"></i>
+            </button>
+            {% endif %}
+        </div>
+        <div class="kanban-column-body" data-status-id="{{ col.status.id if col.status else col_key }}">
+            {% for item in col.work_items %}
+            <div class="kanban-card" draggable="true" data-item-id="{{ item.id }}" role="listitem" tabindex="0">
+                <div class="card-key">
+                    {% if is_aggregated %}<span class="pp-badge pp-badge-muted" style="font-size:0.65rem;">{{ item.project.key }}</span>{% endif %}
+                    {{ item.item_key }}
+                </div>
+                <div class="card-title">
+                    <a href="{{ url_for('work_items.detail', key=item.project.key, item_key=item.item_key) }}">{{ item.title }}</a>
+                </div>
+                <div class="card-meta">
+                    <i class="{{ item.item_type.icon }}" style="color:{{ item.item_type.color }}" title="{{ item.item_type.name }}"></i>
+                    <i class="{{ item.priority_icon }}" style="color:{{ item.priority_color }}" title="{{ item.priority }}"></i>
+                    <span class="pp-sp-badge" data-sp-edit data-item-id="{{ item.id }}" data-sp="{{ item.story_points if item.story_points is not none else '' }}" title="Story points">{{ item.story_points if item.story_points is not none else '—' }}</span>
+                    {% if item.assignee %}
+                    <span class="pp-badge pp-badge-muted" style="margin-left:auto;">{{ item.assignee.display_name[:8] }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/kanban.js') }}"></script>
+{% endblock %}

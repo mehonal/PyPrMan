@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% block title %}{{ item.item_key }} - {{ item.title }} - PyPrMan{% endblock %}
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('projects.detail', key=project.key) }}">{{ project.key }}</a></li>
+    <li class="breadcrumb-item active">{{ item.item_key }}</li>
+</ol>
+{% endblock %}
+{% block actions %}
+<a href="{{ url_for('work_items.edit_item', key=project.key, item_key=item.item_key) }}" class="pp-btn pp-btn-secondary pp-btn-sm">
+    <i class="bi bi-pencil"></i> Edit
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-md-8">
+        <div class="d-flex align-items-start gap-2 mb-3 flex-wrap">
+            <span class="pp-badge-key">{{ item.item_key }}</span>
+            <i class="{{ item.item_type.icon }}" style="color:{{ item.item_type.color }}; font-size:1rem;" title="{{ item.item_type.name }}"></i>
+            <h1 style="font-size:1.25rem; margin:0; flex-grow:1;"
+                data-inline-edit="text" data-field="title" data-item-id="{{ item.id }}"
+                data-current-value="{{ item.title }}">
+                <span class="pp-inline-text-display">{{ item.title }}</span>
+            </h1>
+        </div>
+
+        {% if item.parent %}
+        <div style="margin-bottom:16px;">
+            <span style="color:var(--pp-text-muted); font-size:0.8125rem;">Subtask of</span>
+            <a href="{{ url_for('work_items.detail', key=project.key, item_key=item.parent.item_key) }}" style="font-size:0.8125rem;">{{ item.parent.item_key }} - {{ item.parent.title }}</a>
+        </div>
+        {% endif %}
+
+        <div class="pp-card mb-4">
+            <div class="pp-card-body"
+                 data-inline-edit="textarea" data-field="description" data-item-id="{{ item.id }}"
+                 data-current-value="{{ item.description or '' }}">
+                <div class="pp-inline-text-display pp-markdown" style="font-size:0.875rem;{% if not item.description %} display:none;{% endif %}"></div>
+                <p class="pp-inline-placeholder" style="margin:0; color:var(--pp-text-muted); font-size:0.875rem;{% if item.description %} display:none;{% endif %}">Add a description...</p>
+            </div>
+        </div>
+
+        <div class="pp-card mb-4">
+            <div class="pp-card-header">
+                Subtasks{% if item.subtasks %} ({{ item.subtasks|length }}){% endif %}
+                <button class="pp-btn pp-btn-ghost pp-btn-sm" style="margin-left:auto;" onclick="ppModal.createItem('{{ project.key }}', {parent_id: {{ item.id }}})">
+                    <i class="bi bi-plus-lg"></i>
+                </button>
+            </div>
+            <div class="pp-card-body p-0">
+                {% for sub in item.subtasks %}
+                <a href="{{ url_for('work_items.detail', key=project.key, item_key=sub.item_key) }}" class="pp-list-item">
+                    <span class="item-key">{{ sub.item_key }}</span>
+                    <i class="{{ sub.item_type.icon }}" style="color:{{ sub.item_type.color }}; font-size:0.875rem;" aria-hidden="true"></i>
+                    <span class="item-title">{{ sub.title }}</span>
+                    <span class="item-meta">
+                        <span class="pp-status-dot" style="background:{{ sub.status.color }}" title="{{ sub.status.name }}"></span>
+                    </span>
+                </a>
+                {% endfor %}
+                {% if not item.subtasks %}
+                <div class="pp-empty" style="padding:24px;">
+                    <p style="margin:0; font-size:0.8125rem;">No subtasks yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="pp-card mb-4" id="comments-section">
+            <div class="pp-card-header">Comments</div>
+            <div class="pp-card-body">
+                <div id="comments-list">
+                    {% for comment in item.comments %}
+                    <div class="pp-comment" id="comment-{{ comment.id }}">
+                        <div class="pp-comment-header">
+                            <strong style="font-size:0.8125rem;">{{ comment.author.display_name }}</strong>
+                            <div class="d-flex align-items-center gap-2">
+                                <span style="color:var(--pp-text-muted); font-size:0.75rem;">{{ comment.created_at.strftime('%b %d, %Y %H:%M') }}</span>
+                                {% if comment.author_id == current_user.id %}
+                                <button data-delete-comment="{{ comment.id }}" class="pp-btn pp-btn-ghost pp-btn-sm" style="padding:2px 6px; color:var(--pp-danger);" title="Delete">
+                                    <i class="bi bi-trash" style="font-size:0.75rem;"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <p style="margin:0; white-space:pre-wrap; font-size:0.8125rem;">{{ comment.body }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if not item.comments %}
+                <p id="no-comments-msg" style="color:var(--pp-text-muted); font-size:0.8125rem; margin-bottom:16px;">No comments yet.</p>
+                {% endif %}
+
+                <form id="comment-form" style="margin-top:16px;">
+                    <div class="pp-form-group">
+                        <label for="body" class="visually-hidden">Add a comment</label>
+                        <textarea class="pp-input" id="body" name="body" rows="2" placeholder="Add a comment..." required></textarea>
+                    </div>
+                    <button type="submit" class="pp-btn pp-btn-primary pp-btn-sm">Comment</button>
+                </form>
+            </div>
+        </div>
+
+        {% if item.activity_logs %}
+        <div class="pp-card">
+            <div class="pp-card-header">Activity</div>
+            <div class="pp-card-body">
+                {% for log in item.activity_logs %}
+                <div style="padding:6px 0; font-size:0.8125rem; color:var(--pp-text-secondary);{% if not loop.last %} border-bottom:1px solid var(--pp-border);{% endif %}">
+                    <strong>{{ log.user.display_name }}</strong>
+                    changed <em>{{ log.field_changed }}</em>
+                    {% if log.old_value %}from <span style="text-decoration:line-through;">{{ log.old_value }}</span>{% endif %}
+                    to <strong style="color:var(--pp-text);">{{ log.new_value }}</strong>
+                    <span style="margin-left:8px; color:var(--pp-text-muted); font-size:0.75rem;">{{ log.created_at.strftime('%b %d, %Y %H:%M') }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-md-4">
+        <div class="pp-card">
+            <div class="pp-card-body" style="font-size:0.8125rem;">
+                <dl style="margin:0;">
+                    <dt style="color:var(--pp-text-muted); font-size:0.75rem; font-weight:500; margin-bottom:2px;">Status</dt>
+                    <dd style="margin-bottom:12px;"
+                        data-inline-edit data-field="status_id" data-item-id="{{ item.id }}"
+                        data-current-value="{{ item.status_id }}"
+                        data-options='[{% for s in project.statuses %}{"value":{{ s.id }},"label":"{{ s.name }}","color":"{{ s.color }}"}{% if not loop.last %},{% endif %}{% endfor %}]'>
+                        <span class="pp-inline-value">
+                            <span class="pp-status-dot" style="background:{{ item.status.color }}"></span>
+                            <span class="pp-inline-text">{{ item.status.name }}</span>
+                        </span>
+                    </dd>
+
+                    <dt style="color:var(--pp-text-muted); font-size:0.75rem; font-weight:500; margin-bottom:2px;">Priority</dt>
+                    <dd style="margin-bottom:12px;"
+                        data-inline-edit data-field="priority" data-item-id="{{ item.id }}"
+                        data-current-value="{{ item.priority }}"
+                        data-options='[{"value":"none","label":"None"},{"value":"low","label":"Low"},{"value":"medium","label":"Medium"},{"value":"high","label":"High"},{"value":"critical","label":"Critical"}]'>
+                        <span class="pp-inline-value">
+                            <i class="{{ item.priority_icon }}" style="color:{{ item.priority_color }}" aria-hidden="true"></i>
+                            <span class="pp-inline-text">{{ item.priority|capitalize }}</span>
+                        </span>
+                    </dd>
+
+                    <dt style="color:var(--pp-text-muted); font-size:0.75rem; font-weight:500; margin-bottom:2px;">Type</dt>
+                    <dd style="margin-bottom:12px;"
+                        data-inline-edit data-field="item_type_id" data-item-id="{{ item.id }}"
+                        data-current-value="{{ item.item_type_id }}"
+                        data-options='[{% for t in project.item_types %}{"value":{{ t.id }},"label":"{{ t.name }}","icon":"{{ t.icon }}","color":"{{ t.color }}"}{% if not loop.last %},{% endif %}{% endfor %}]'>
+                        <span class="pp-inline-value">
+                            <i class="{{ item.item_type.icon }}" style="color:{{ item.item_type.color }}" aria-hidden="true"></i>
+                            <span class="pp-inline-text">{{ item.item_type.name }}</span>
+                        </span>
+                    </dd>
+
+                    <dt style="color:var(--pp-text-muted); font-size:0.75rem; font-weight:500; margin-bottom:2px;">Assignee</dt>
+                    <dd style="margin-bottom:12px;"
+                        data-inline-edit data-field="assignee_id" data-item-id="{{ item.id }}"
+                        data-current-value="{{ item.assignee_id or '' }}"
+                        data-options='[{"value":"","label":"Unassigned"}{% for m in members %},{"value":{{ m.id }},"label":"{{ m.display_name }}"}{% endfor %}]'>
+                        <span class="pp-inline-value">
+                            <span class="pp-inline-text">{{ item.assignee.display_name if item.assignee else 'Unassigned' }}</span>
+                        </span>
+                    </dd>
+
+                    <dt style="color:var(--pp-text-muted); font-size:0.75rem; font-weight:500; margin-bottom:2px;">Story Points</dt>
+                    <dd style="margin-bottom:12px;"
+                        data-inline-edit="text" data-field="story_points" data-item-id="{{ item.id }}"
+                        data-current-value="{{ item.story_points if item.story_points is not none else '' }}"
+                        data-empty-display="—">
+                        <span class="pp-inline-text-display">{{ item.story_points if item.story_points is not none else '—' }}</span>
+                    </dd>
+
+                    <dt style="color:var(--pp-text-muted); font-size:0.75rem; font-weight:500; margin-bottom:2px;">Reporter</dt>
+                    <dd style="margin-bottom:12px;">{{ item.reporter.display_name }}</dd>
+
+                    {% if item.epic %}
+                    <dt style="color:var(--pp-text-muted); font-size:0.75rem; font-weight:500; margin-bottom:2px;">Epic</dt>
+                    <dd style="margin-bottom:12px;"><a href="{{ url_for('epics.detail_epic', key=project.key, epic_id=item.epic.id) }}" style="text-decoration:none;"><span class="pp-badge" style="background:{{ item.epic.color }}; color:#fff;">{{ item.epic.name }}</span></a></dd>
+                    {% endif %}
+
+                    {% if item.sprint %}
+                    <dt style="color:var(--pp-text-muted); font-size:0.75rem; font-weight:500; margin-bottom:2px;">Sprint</dt>
+                    <dd style="margin-bottom:12px;">{{ item.sprint.name }}{% if item.sprint.is_active %} <span class="pp-badge pp-badge-primary" style="font-size:0.6875rem;">Active</span>{% endif %}</dd>
+                    {% endif %}
+
+                    <dt style="color:var(--pp-text-muted); font-size:0.75rem; font-weight:500; margin-bottom:2px;">Created</dt>
+                    <dd style="margin-bottom:0;">{{ item.created_at.strftime('%b %d, %Y') }}</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div style="margin-top:12px;">
+            <form method="POST" action="{{ url_for('work_items.delete_item', key=project.key, item_key=item.item_key) }}" onsubmit="return confirm('Delete this item?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="pp-btn pp-btn-danger pp-btn-sm" style="width:100%;">
+                    <i class="bi bi-trash"></i> Delete
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/inline-edit.js') }}"></script>
+<script>
+    ppComments.init({{ item.id }}, '{{ project.key }}', '{{ item.item_key }}');
+</script>
+{% endblock %}

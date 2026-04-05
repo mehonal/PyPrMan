@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Statuses - {{ project.key }} - PyPrMan{% endblock %}
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('projects.detail', key=project.key) }}">{{ project.key }}</a></li>
+    <li class="breadcrumb-item active">Settings</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:720px;">
+    <div class="pp-settings-tabs mb-4">
+        <a href="{{ url_for('settings.manage_statuses', key=project.key) }}" class="pp-settings-tab active">Statuses</a>
+        <a href="{{ url_for('settings.manage_types', key=project.key) }}" class="pp-settings-tab">Types</a>
+        <a href="{{ url_for('settings.manage_members', key=project.key) }}" class="pp-settings-tab">Members</a>
+    </div>
+
+    <div class="pp-card mb-4">
+        <div class="pp-card-header">Add Status</div>
+        <div class="pp-card-body">
+            <form method="POST" class="row g-2 align-items-end">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="add">
+                <div class="col-md-3">
+                    <label class="pp-form-label" for="name">Name</label>
+                    <input type="text" class="pp-input" id="name" name="name" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="pp-form-label" for="category">Category</label>
+                    <select class="pp-select" id="category" name="category">
+                        <option value="backlog">Backlog</option>
+                        <option value="todo" selected>To Do</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="done">Done</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="pp-form-label" for="color">Color</label>
+                    <input type="color" class="pp-input" id="color" name="color" value="#6b7280" style="width:60px; height:36px; padding:4px;">
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="pp-btn pp-btn-primary" style="width:100%;"><i class="bi bi-plus-lg"></i> Add</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="pp-card">
+        <div class="pp-card-header">Current Statuses</div>
+        <div class="pp-card-body p-0">
+            {% for status in statuses %}
+            <div class="pp-settings-row">
+                <div class="pp-settings-row-reorder">
+                    {% if not loop.first %}
+                    <form method="POST" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="move_up">
+                        <input type="hidden" name="status_id" value="{{ status.id }}">
+                        <button type="submit" class="pp-btn pp-btn-ghost pp-btn-sm" style="padding:1px 4px;" title="Move up"><i class="bi bi-chevron-up" style="font-size:0.7rem;"></i></button>
+                    </form>
+                    {% endif %}
+                    {% if not loop.last %}
+                    <form method="POST" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="move_down">
+                        <input type="hidden" name="status_id" value="{{ status.id }}">
+                        <button type="submit" class="pp-btn pp-btn-ghost pp-btn-sm" style="padding:1px 4px;" title="Move down"><i class="bi bi-chevron-down" style="font-size:0.7rem;"></i></button>
+                    </form>
+                    {% endif %}
+                </div>
+                <form method="POST" class="d-flex align-items-center gap-2 flex-wrap" style="flex:1;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="edit">
+                    <input type="hidden" name="status_id" value="{{ status.id }}">
+                    <span class="pp-status-dot" style="background:{{ status.color }}"></span>
+                    <input type="text" class="pp-input" name="name" value="{{ status.name }}" style="width:120px; padding:4px 8px; font-size:0.8125rem;">
+                    <select class="pp-select" name="category" style="width:auto; padding:4px 8px; font-size:0.8125rem;">
+                        {% for cat in ['backlog', 'todo', 'in_progress', 'done'] %}
+                        <option value="{{ cat }}" {% if status.category == cat %}selected{% endif %}>{{ cat|replace('_', ' ')|title }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="color" name="color" value="{{ status.color }}" style="width:32px; height:28px; padding:2px; border:1px solid var(--pp-border); border-radius:4px; cursor:pointer;">
+                    <button type="submit" class="pp-btn pp-btn-secondary pp-btn-sm">Save</button>
+                </form>
+                <form method="POST" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="delete">
+                    <input type="hidden" name="status_id" value="{{ status.id }}">
+                    <button type="submit" class="pp-btn pp-btn-ghost pp-btn-sm" style="color:var(--pp-danger);" onclick="return confirm('Delete this status?')"><i class="bi bi-trash"></i></button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

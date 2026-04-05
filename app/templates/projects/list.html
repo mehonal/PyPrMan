@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Projects - PyPrMan{% endblock %}
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item active">Projects</li>
+</ol>
+{% endblock %}
+{% block actions %}
+<a href="{{ url_for('projects.create_project') }}" class="pp-btn pp-btn-primary pp-btn-sm">
+    <i class="bi bi-plus-lg"></i> New Project
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+    {% for project in projects %}
+    <div class="col-sm-6 col-lg-4">
+        <div class="pp-card" style="height:100%;">
+            <div class="pp-card-body">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span class="pp-badge pp-badge-primary">{{ project.key }}</span>
+                    <h5 style="margin:0; font-size:1rem;">{{ project.name }}</h5>
+                </div>
+                <p style="font-size:0.8125rem; color:var(--pp-text-secondary); margin-bottom:16px;">{{ project.description[:120] }}{% if project.description|length > 120 %}...{% endif %}</p>
+                <div class="d-flex gap-2 flex-wrap">
+                    <a href="{{ url_for('board.project_board', key=project.key) }}" class="pp-btn pp-btn-secondary pp-btn-sm"><i class="bi bi-kanban"></i> Board</a>
+                    <a href="{{ url_for('backlog.project_backlog', key=project.key) }}" class="pp-btn pp-btn-secondary pp-btn-sm"><i class="bi bi-list-task"></i> Backlog</a>
+                    <a href="{{ url_for('projects.detail', key=project.key) }}" class="pp-btn pp-btn-ghost pp-btn-sm"><i class="bi bi-arrow-right"></i></a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% if not projects %}
+    <div class="col-12">
+        <div class="pp-empty">
+            <i class="bi bi-folder-plus"></i>
+            <p>No projects yet. Create one to get started.</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

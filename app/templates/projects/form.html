@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}{% if project %}Edit {{ project.name }}{% else %}New Project{% endif %} - PyPrMan{% endblock %}
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('projects.list_projects') }}">Projects</a></li>
+    <li class="breadcrumb-item active">{% if project %}Edit{% else %}New{% endif %}</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:560px;">
+    <h1 style="font-size:1.25rem; margin-bottom:24px;">{% if project %}Edit Project{% else %}New Project{% endif %}</h1>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="pp-form-group">
+            <label class="pp-form-label" for="name">Project Name</label>
+            <input type="text" class="pp-input" id="name" name="name" value="{{ project.name if project else '' }}" required>
+        </div>
+        {% if not project %}
+        <div class="pp-form-group">
+            <label class="pp-form-label" for="key">Key</label>
+            <input type="text" class="pp-input" id="key" name="key" maxlength="10" placeholder="e.g. PROJ" required style="text-transform:uppercase; font-family:var(--pp-font-mono);">
+            <small style="color:var(--pp-text-muted); font-size:0.75rem;">1-10 letters. Used as prefix for work item IDs.</small>
+        </div>
+        {% endif %}
+        <div class="pp-form-group">
+            <label class="pp-form-label" for="description">Description</label>
+            <textarea class="pp-input" id="description" name="description" rows="3">{{ project.description if project else '' }}</textarea>
+        </div>
+        <div class="d-flex gap-2">
+            <button type="submit" class="pp-btn pp-btn-primary">{% if project %}Update{% else %}Create{% endif %}</button>
+            <a href="{{ url_for('projects.list_projects') }}" class="pp-btn pp-btn-secondary">Cancel</a>
+        </div>
+    </form>
+
+    {% if project %}
+    <hr style="margin:32px 0; border-color:var(--pp-border);">
+    <div class="pp-card" style="border-color:var(--pp-danger);">
+        <div class="pp-card-body">
+            <h5 style="color:var(--pp-danger); font-size:0.9375rem;">Danger Zone</h5>
+            <p style="color:var(--pp-text-secondary); font-size:0.8125rem;">Permanently delete this project and all its data.</p>
+            <form method="POST" action="{{ url_for('projects.delete_project', key=project.key) }}" onsubmit="return confirm('Are you sure? This cannot be undone.')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="pp-btn pp-btn-danger pp-btn-sm">Delete Project</button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

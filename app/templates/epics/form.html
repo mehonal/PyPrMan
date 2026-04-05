@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{% if epic %}Edit Epic{% else %}New Epic{% endif %} - PyPrMan{% endblock %}
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('projects.detail', key=project.key) }}">{{ project.key }}</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('epics.list_epics', key=project.key) }}">Epics</a></li>
+    <li class="breadcrumb-item active">{% if epic %}Edit{% else %}New{% endif %}</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:480px;">
+    <h1 style="font-size:1.25rem; margin-bottom:24px;">{% if epic %}Edit Epic{% else %}New Epic{% endif %}</h1>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="pp-form-group">
+            <label class="pp-form-label" for="name">Name</label>
+            <input type="text" class="pp-input" id="name" name="name" value="{{ epic.name if epic else '' }}" required>
+        </div>
+        <div class="pp-form-group">
+            <label class="pp-form-label" for="description">Description</label>
+            <textarea class="pp-input" id="description" name="description" rows="3">{{ epic.description if epic else '' }}</textarea>
+        </div>
+        <div class="pp-form-group">
+            <label class="pp-form-label" for="color">Color</label>
+            <input type="color" class="pp-input" id="color" name="color" value="{{ epic.color if epic else '#8b5cf6' }}" style="width:60px; height:36px; padding:4px;">
+        </div>
+        <div class="d-flex gap-2">
+            <button type="submit" class="pp-btn pp-btn-primary">{% if epic %}Update{% else %}Create{% endif %}</button>
+            <a href="{{ url_for('epics.list_epics', key=project.key) }}" class="pp-btn pp-btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

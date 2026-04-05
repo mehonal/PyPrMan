@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Members - {{ project.key }} - PyPrMan{% endblock %}
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('projects.detail', key=project.key) }}">{{ project.key }}</a></li>
+    <li class="breadcrumb-item active">Settings</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:640px;">
+    <div class="pp-settings-tabs mb-4">
+        <a href="{{ url_for('settings.manage_statuses', key=project.key) }}" class="pp-settings-tab">Statuses</a>
+        <a href="{{ url_for('settings.manage_types', key=project.key) }}" class="pp-settings-tab">Types</a>
+        <a href="{{ url_for('settings.manage_members', key=project.key) }}" class="pp-settings-tab active">Members</a>
+    </div>
+
+    <div class="pp-card mb-4">
+        <div class="pp-card-header">Add Member</div>
+        <div class="pp-card-body">
+            <form method="POST" class="row g-2 align-items-end">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="add">
+                <div class="col-md-5">
+                    <label class="pp-form-label" for="email">Email</label>
+                    <input type="email" class="pp-input" id="email" name="email" required placeholder="user@example.com">
+                </div>
+                <div class="col-md-4">
+                    <label class="pp-form-label" for="role">Role</label>
+                    <select class="pp-select" id="role" name="role">
+                        <option value="member">Member</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="pp-btn pp-btn-primary" style="width:100%;"><i class="bi bi-person-plus"></i> Add</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="pp-card">
+        <div class="pp-card-header">Current Members</div>
+        <div class="pp-card-body p-0">
+            {% for m in memberships %}
+            <div style="padding:12px 16px; border-bottom:1px solid var(--pp-border); display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                <i class="bi bi-person-circle" style="font-size:1.5rem; color:var(--pp-text-secondary);"></i>
+                <div style="flex-grow:1;">
+                    <div style="font-weight:600; font-size:0.875rem;">{{ m.user.display_name }}</div>
+                    <div style="font-size:0.75rem; color:var(--pp-text-muted);">{{ m.user.email }}</div>
+                </div>
+                <form method="POST" class="d-flex align-items-center gap-2">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="change_role">
+                    <input type="hidden" name="membership_id" value="{{ m.id }}">
+                    <select class="pp-select" name="role" style="width:auto; padding:4px 8px; font-size:0.8125rem;" onchange="this.form.submit()">
+                        {% for r in ['member', 'admin', 'owner'] %}
+                        <option value="{{ r }}" {% if m.role == r %}selected{% endif %}>{{ r|capitalize }}</option>
+                        {% endfor %}
+                    </select>
+                </form>
+                {% if m.user_id != current_user.id or m.role != 'owner' %}
+                <form method="POST" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="remove">
+                    <input type="hidden" name="membership_id" value="{{ m.id }}">
+                    <button type="submit" class="pp-btn pp-btn-ghost pp-btn-sm" style="color:var(--pp-danger);" onclick="return confirm('Remove this member?')"><i class="bi bi-x-lg"></i></button>
+                </form>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

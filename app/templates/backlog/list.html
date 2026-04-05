@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}{% if project %}Backlog - {{ project.key }}{% else %}Backlog{% endif %} - PyPrMan{% endblock %}
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0">
+    {% if project %}
+    <li class="breadcrumb-item"><a href="{{ url_for('projects.detail', key=project.key) }}">{{ project.key }}</a></li>
+    <li class="breadcrumb-item active">Backlog</li>
+    {% else %}
+    <li class="breadcrumb-item active">Backlog</li>
+    {% endif %}
+</ol>
+{% endblock %}
+{% block actions %}
+{% if is_aggregated and projects %}
+<select class="pp-select" style="width:auto; font-size:0.8125rem;" onchange="location.href='?project_id='+this.value">
+    <option value="">All Projects</option>
+    {% for p in projects %}
+    <option value="{{ p.id }}" {% if filter_project_id == p.id %}selected{% endif %}>{{ p.key }} - {{ p.name }}</option>
+    {% endfor %}
+</select>
+{% endif %}
+{% if project %}
+<button class="pp-btn pp-btn-primary pp-btn-sm" onclick="ppModal.createItem('{{ project.key }}')">
+    <i class="bi bi-plus-lg"></i> New Item
+</button>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+{% for sprint in sprints %}
+<div class="pp-card mb-4">
+    <div class="pp-card-header">
+        <i class="bi bi-lightning" style="color:var(--pp-primary);"></i>
+        <strong>{{ sprint.name }}</strong>
+        {% if sprint.is_active %}<span class="pp-badge pp-badge-primary" style="font-size:0.6875rem;">Active</span>{% endif %}
+        {% if sprint.start_date %}
+        <span style="font-size:0.75rem; color:var(--pp-text-muted); margin-left:8px;">{{ sprint.start_date.strftime('%b %d') }}{% if sprint.end_date %} - {{ sprint.end_date.strftime('%b %d') }}{% endif %}</span>
+        {% endif %}
+        <span class="pp-badge pp-badge-muted" style="margin-left:auto;">{{ sprint_items.get(sprint.id, [])|length }} items</span>
+    </div>
+    <div class="pp-card-body p-0" data-backlog-group="{{ sprint.id }}">
+        {% for item in sprint_items.get(sprint.id, []) %}
+        <a href="{{ url_for('work_items.detail', key=item.project.key, item_key=item.item_key) }}" class="pp-list-item" data-item-id="{{ item.id }}">
+            <span class="item-key">
+                {% if is_aggregated %}<span class="pp-badge-key" style="font-size:0.65rem;">{{ item.project.key }}</span>{% endif %}
+                {{ item.item_key }}
+            </span>
+            <i class="{{ item.item_type.icon }}" style="color:{{ item.item_type.color }}; font-size:0.875rem;" aria-hidden="true"></i>
+            <span class="item-title">{{ item.title }}</span>
+            <span class="item-meta">
+                <span class="pp-status-dot" style="background:{{ item.status.color }}" title="{{ item.status.name }}"></span>
+                <i class="{{ item.priority_icon }}" style="color:{{ item.priority_color }}; font-size:0.75rem;" title="{{ item.priority }}"></i>
+                <span class="pp-sp-badge" data-sp-edit data-item-id="{{ item.id }}" data-sp="{{ item.story_points if item.story_points is not none else '' }}" title="Story points">{{ item.story_points if item.story_points is not none else '—' }}</span>
+                {% if item.assignee %}<span class="pp-badge pp-badge-muted">{{ item.assignee.display_name[:8] }}</span>{% endif %}
+            </span>
+        </a>
+        {% endfor %}
+        {% if not sprint_items.get(sprint.id, []) %}
+        <div class="pp-empty" style="padding:24px;">
+            <p style="margin:0; font-size:0.8125rem;">No items in this sprint.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
+
+<div class="pp-card">
+    <div class="pp-card-header">
+        <i class="bi bi-inbox" style="color:var(--pp-text-secondary);"></i>
+        <strong>Backlog</strong>
+        <span class="pp-badge pp-badge-muted" style="margin-left:auto;">{{ no_sprint_items|length }} items</span>
+    </div>
+    <div class="pp-card-body p-0" data-backlog-group="backlog">
+        {% for item in no_sprint_items %}
+        <a href="{{ url_for('work_items.detail', key=item.project.key, item_key=item.item_key) }}" class="pp-list-item" data-item-id="{{ item.id }}">
+            <span class="item-key">
+                {% if is_aggregated %}<span class="pp-badge-key" style="font-size:0.65rem;">{{ item.project.key }}</span>{% endif %}
+                {{ item.item_key }}
+            </span>
+            <i class="{{ item.item_type.icon }}" style="color:{{ item.item_type.color }}; font-size:0.875rem;" aria-hidden="true"></i>
+            <span class="item-title">{{ item.title }}</span>
+            <span class="item-meta">
+                <span class="pp-status-dot" style="background:{{ item.status.color }}" title="{{ item.status.name }}"></span>
+                <i class="{{ item.priority_icon }}" style="color:{{ item.priority_color }}; font-size:0.75rem;" title="{{ item.priority }}"></i>
+                <span class="pp-sp-badge" data-sp-edit data-item-id="{{ item.id }}" data-sp="{{ item.story_points if item.story_points is not none else '' }}" title="Story points">{{ item.story_points if item.story_points is not none else '—' }}</span>
+                {% if item.assignee %}<span class="pp-badge pp-badge-muted">{{ item.assignee.display_name[:8] }}</span>{% endif %}
+            </span>
+        </a>
+        {% endfor %}
+        {% if not no_sprint_items %}
+        <div class="pp-empty" style="padding:24px;">
+            <p style="margin:0; font-size:0.8125rem;">No items in backlog.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/backlog.js') }}"></script>
+{% endblock %}

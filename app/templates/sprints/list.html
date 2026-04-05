@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Sprints - PyPrMan{% endblock %}
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item active">Sprints</li>
+</ol>
+{% endblock %}
+{% block actions %}
+<a href="{{ url_for('sprints.create_sprint') }}" class="pp-btn pp-btn-primary pp-btn-sm">
+    <i class="bi bi-plus-lg"></i> New Sprint
+</a>
+{% endblock %}
+
+{% block content %}
+{% for sprint in sprints %}
+<div class="pp-card mb-3">
+    <div class="pp-card-body">
+        <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+            <h5 style="margin:0; font-size:0.9375rem;">{{ sprint.name }}</h5>
+            {% if sprint.is_active %}
+            <span class="pp-badge pp-badge-primary" style="font-size:0.6875rem;">Active</span>
+            {% endif %}
+            {% for p in sprint.projects %}
+            <span class="pp-badge-key">{{ p.key }}</span>
+            {% endfor %}
+        </div>
+        {% if sprint.goal %}
+        <p style="color:var(--pp-text-secondary); font-size:0.8125rem; margin-bottom:8px;">{{ sprint.goal }}</p>
+        {% endif %}
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            {% if sprint.start_date %}
+            <span style="font-size:0.75rem; color:var(--pp-text-muted);"><i class="bi bi-calendar"></i> {{ sprint.start_date.strftime('%b %d') }}{% if sprint.end_date %} - {{ sprint.end_date.strftime('%b %d, %Y') }}{% endif %}</span>
+            {% endif %}
+            <span style="font-size:0.75rem; color:var(--pp-text-muted);">{{ sprint.work_items|length }} items</span>
+            <div style="margin-left:auto;" class="d-flex gap-2">
+                {% if not sprint.is_active %}
+                <form method="POST" action="{{ url_for('sprints.start_sprint', sprint_id=sprint.id) }}" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="pp-btn pp-btn-secondary pp-btn-sm" style="color:var(--pp-success, #16a34a);">Start</button>
+                </form>
+                {% else %}
+                <form method="POST" action="{{ url_for('sprints.complete_sprint', sprint_id=sprint.id) }}" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="pp-btn pp-btn-secondary pp-btn-sm" style="color:var(--pp-warning, #d97706);">Complete</button>
+                </form>
+                {% endif %}
+                <a href="{{ url_for('sprints.edit_sprint', sprint_id=sprint.id) }}" class="pp-btn pp-btn-ghost pp-btn-sm">
+                    <i class="bi bi-pencil"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% if not sprints %}
+<div class="pp-empty">
+    <i class="bi bi-lightning"></i>
+    <p>No sprints yet.</p>
+    <a href="{{ url_for('sprints.create_sprint') }}" class="pp-btn pp-btn-primary pp-btn-sm">Create one</a>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{% if sprint %}Edit Sprint{% else %}New Sprint{% endif %} - PyPrMan{% endblock %}
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('sprints.list_sprints') }}">Sprints</a></li>
+    <li class="breadcrumb-item active">{% if sprint %}Edit{% else %}New{% endif %}</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:520px;">
+    <h1 style="font-size:1.25rem; margin-bottom:24px;">{% if sprint %}Edit Sprint{% else %}New Sprint{% endif %}</h1>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="pp-form-group">
+            <label class="pp-form-label" for="name">Sprint Name</label>
+            <input type="text" class="pp-input" id="name" name="name" value="{{ sprint.name if sprint else '' }}" required>
+        </div>
+        <div class="pp-form-group">
+            <label class="pp-form-label" for="goal">Goal</label>
+            <textarea class="pp-input" id="goal" name="goal" rows="2">{{ sprint.goal if sprint else '' }}</textarea>
+        </div>
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <label class="pp-form-label" for="start_date">Start Date</label>
+                <input type="date" class="pp-input" id="start_date" name="start_date" value="{{ sprint.start_date.isoformat() if sprint and sprint.start_date else '' }}">
+            </div>
+            <div class="col-md-6">
+                <label class="pp-form-label" for="end_date">End Date</label>
+                <input type="date" class="pp-input" id="end_date" name="end_date" value="{{ sprint.end_date.isoformat() if sprint and sprint.end_date else '' }}">
+            </div>
+        </div>
+        <div class="pp-form-group">
+            <label class="pp-form-label">Projects</label>
+            <small style="display:block; color:var(--pp-text-muted); font-size:0.75rem; margin-bottom:8px;">Select which projects this sprint belongs to.</small>
+            {% for p in projects %}
+            <div class="form-check" style="margin-bottom:6px;">
+                <input class="form-check-input" type="checkbox" name="project_ids" value="{{ p.id }}" id="proj_{{ p.id }}"
+                    {% if sprint and p.id in selected_project_ids %}checked{% elif not sprint and projects|length == 1 %}checked{% endif %}>
+                <label class="form-check-label" for="proj_{{ p.id }}" style="font-size:0.875rem;">
+                    <span class="pp-badge-key">{{ p.key }}</span> {{ p.name }}
+                </label>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="d-flex gap-2">
+            <button type="submit" class="pp-btn pp-btn-primary">{% if sprint %}Update{% else %}Create{% endif %}</button>
+            <a href="{{ url_for('sprints.list_sprints') }}" class="pp-btn pp-btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

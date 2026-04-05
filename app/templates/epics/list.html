@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Epics - {{ project.key }} - PyPrMan{% endblock %}
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('projects.detail', key=project.key) }}">{{ project.key }}</a></li>
+    <li class="breadcrumb-item active">Epics</li>
+</ol>
+{% endblock %}
+{% block actions %}
+<button class="pp-btn pp-btn-primary pp-btn-sm" onclick="ppModal.createEpic('{{ project.key }}')">
+    <i class="bi bi-plus-lg"></i> New Epic
+</button>
+{% endblock %}
+
+{% block content %}
+{% for epic in epics %}
+<div class="pp-card mb-3">
+    <div class="pp-card-body d-flex align-items-center gap-3 flex-wrap">
+        <span class="pp-status-dot" style="background:{{ epic.color }}; width:14px; height:14px;"></span>
+        <div style="flex-grow:1;">
+            <h5 style="margin:0; font-size:0.9375rem;"><a href="{{ url_for('epics.detail_epic', key=project.key, epic_id=epic.id) }}" style="color:inherit; text-decoration:none;">{{ epic.name }}</a></h5>
+            {% if epic.description %}
+            <p style="font-size:0.8125rem; color:var(--pp-text-secondary); margin:2px 0 0;">{{ epic.description[:100] }}{% if epic.description|length > 100 %}...{% endif %}</p>
+            {% endif %}
+        </div>
+        <span class="pp-badge pp-badge-muted">{{ epic.work_items|length }} items</span>
+        <a href="{{ url_for('epics.edit_epic', key=project.key, epic_id=epic.id) }}" class="pp-btn pp-btn-ghost pp-btn-sm">
+            <i class="bi bi-pencil"></i>
+        </a>
+        <form method="POST" action="{{ url_for('epics.delete_epic', key=project.key, epic_id=epic.id) }}" class="d-inline" onsubmit="return confirm('Delete this epic?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="pp-btn pp-btn-ghost pp-btn-sm" style="color:var(--pp-danger);"><i class="bi bi-trash"></i></button>
+        </form>
+    </div>
+</div>
+{% endfor %}
+
+{% if not epics %}
+<div class="pp-empty">
+    <i class="bi bi-collection"></i>
+    <p>No epics yet.</p>
+    <button class="pp-btn pp-btn-primary pp-btn-sm" onclick="ppModal.createEpic('{{ project.key }}')">Create one</button>
+</div>
+{% endif %}
+{% endblock %}

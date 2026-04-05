@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - PyPrMan{% endblock %}
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item active">Dashboard</li>
+</ol>
+{% endblock %}
+{% block actions %}
+<a href="{{ url_for('projects.create_project') }}" class="pp-btn pp-btn-primary pp-btn-sm">
+    <i class="bi bi-plus-lg"></i> New Project
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row g-3 mb-4">
+    {% for project in projects %}
+    <div class="col-sm-6 col-md-4 col-xl-3">
+        <a href="{{ url_for('projects.detail', key=project.key) }}" class="pp-stat-card">
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <span class="pp-badge-key">{{ project.key }}</span>
+                <span style="font-weight:600; font-size:0.9375rem;">{{ project.name }}</span>
+            </div>
+            <p style="font-size:0.8125rem; color:var(--pp-text-secondary); margin:0;">{{ project.description[:80] }}{% if project.description|length > 80 %}...{% endif %}</p>
+        </a>
+    </div>
+    {% endfor %}
+    {% if not projects %}
+    <div class="col-12">
+        <div class="pp-empty">
+            <i class="bi bi-folder-plus"></i>
+            <p>No projects yet.</p>
+            <a href="{{ url_for('projects.create_project') }}" class="pp-btn pp-btn-primary">Create your first project</a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="pp-card">
+            <div class="pp-card-header">
+                <i class="bi bi-person-check" style="color:var(--pp-primary);"></i> My Items
+            </div>
+            <div class="pp-card-body p-0">
+                {% for item in my_items %}
+                <a href="{{ url_for('work_items.detail', key=item.project.key, item_key=item.item_key) }}" class="pp-list-item">
+                    <span class="item-key">{{ item.item_key }}</span>
+                    <i class="{{ item.item_type.icon }}" style="color:{{ item.item_type.color }}; font-size:0.875rem;"></i>
+                    <span class="item-title">{{ item.title }}</span>
+                    <span class="item-meta">
+                        <span class="pp-status-dot" style="background:{{ item.status.color }}" title="{{ item.status.name }}"></span>
+                        <i class="{{ item.priority_icon }}" style="color:{{ item.priority_color }}; font-size:0.75rem;" title="{{ item.priority }}"></i>
+                        {% if item.story_points is not none %}<span class="pp-sp-badge" title="Story points">{{ item.story_points }}</span>{% endif %}
+                    </span>
+                </a>
+                {% endfor %}
+                {% if not my_items %}
+                <div class="pp-empty" style="padding:32px;">
+                    <p style="margin:0;">No items assigned to you.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="pp-card">
+            <div class="pp-card-header">
+                <i class="bi bi-clock-history" style="color:var(--pp-primary);"></i> Recent Activity
+            </div>
+            <div class="pp-card-body p-0">
+                {% for item in recent_items %}
+                <a href="{{ url_for('work_items.detail', key=item.project.key, item_key=item.item_key) }}" class="pp-list-item">
+                    <span class="item-key">{{ item.item_key }}</span>
+                    <i class="{{ item.item_type.icon }}" style="color:{{ item.item_type.color }}; font-size:0.875rem;"></i>
+                    <span class="item-title">{{ item.title }}</span>
+                    <span class="item-meta">
+                        <span class="pp-badge-key">{{ item.project.key }}</span>
+                    </span>
+                </a>
+                {% endfor %}
+                {% if not recent_items %}
+                <div class="pp-empty" style="padding:32px;">
+                    <p style="margin:0;">No recent activity.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

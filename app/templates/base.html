@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Open-source project management">
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+    <title>{% block title %}PyPrMan{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap-icons.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+    <div class="pp-app">
+        <!-- Sidebar -->
+        <aside class="pp-sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
+            <div class="pp-sidebar-header">
+                <a href="{{ url_for('main.dashboard') }}" class="pp-logo">
+                    <i class="bi bi-kanban"></i> PyPrMan
+                </a>
+                <button class="pp-sidebar-toggle d-none d-md-flex" id="sidebarToggle" aria-label="Toggle sidebar">
+                    <i class="bi bi-layout-sidebar-inset"></i>
+                </button>
+            </div>
+
+            <nav class="pp-sidebar-nav">
+                <a href="{{ url_for('main.dashboard') }}" class="pp-nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
+                    <i class="bi bi-grid-1x2"></i> Dashboard
+                </a>
+                <a href="{{ url_for('board.aggregated_board') }}" class="pp-nav-link {% if request.endpoint == 'board.aggregated_board' %}active{% endif %}">
+                    <i class="bi bi-kanban"></i> Board
+                </a>
+                <a href="{{ url_for('backlog.aggregated_backlog') }}" class="pp-nav-link {% if request.endpoint == 'backlog.aggregated_backlog' %}active{% endif %}">
+                    <i class="bi bi-list-task"></i> Backlog
+                </a>
+                <a href="{{ url_for('sprints.list_sprints') }}" class="pp-nav-link {% if request.endpoint == 'sprints.list_sprints' %}active{% endif %}">
+                    <i class="bi bi-lightning"></i> Sprints
+                </a>
+
+                <div class="pp-sidebar-section">
+                    Projects
+                    <a href="{{ url_for('projects.create_project') }}" class="pp-sidebar-btn" style="margin-left:auto;" title="New project" aria-label="New project">
+                        <i class="bi bi-plus"></i>
+                    </a>
+                </div>
+
+                {% for project in sidebar_projects %}
+                <div class="pp-project-group">
+                    <a href="{{ url_for('projects.detail', key=project.key) }}" class="pp-project-item {% if active_project and active_project.key == project.key %}active{% endif %}" data-project-key="{{ project.key }}">
+                        <span class="pp-project-key">{{ project.key }}</span>
+                        <span class="pp-project-name">{{ project.name }}</span>
+                        <i class="bi bi-chevron-right" style="margin-left:auto; font-size:0.625rem; opacity:0.5;"></i>
+                    </a>
+                    <div class="pp-project-subnav {% if active_project and active_project.key == project.key %}open{% endif %}">
+                        <a href="{{ url_for('board.project_board', key=project.key) }}"><i class="bi bi-kanban me-1" style="font-size:0.75rem;"></i>Board</a>
+                        <a href="{{ url_for('backlog.project_backlog', key=project.key) }}"><i class="bi bi-list-task me-1" style="font-size:0.75rem;"></i>Backlog</a>
+                        <a href="{{ url_for('epics.list_epics', key=project.key) }}"><i class="bi bi-collection me-1" style="font-size:0.75rem;"></i>Epics</a>
+                        <a href="{{ url_for('sprints.list_sprints') }}"><i class="bi bi-lightning me-1" style="font-size:0.75rem;"></i>Sprints</a>
+                        <a href="{{ url_for('settings.manage_statuses', key=project.key) }}"><i class="bi bi-gear me-1" style="font-size:0.75rem;"></i>Settings</a>
+                    </div>
+                </div>
+                {% endfor %}
+
+                {% if not sidebar_projects %}
+                <div style="padding: 12px; text-align: center;">
+                    <a href="{{ url_for('projects.create_project') }}" class="pp-nav-link" style="justify-content: center; opacity: 0.6;">
+                        <i class="bi bi-folder-plus"></i> Create a project
+                    </a>
+                </div>
+                {% endif %}
+            </nav>
+
+            <div class="pp-sidebar-footer">
+                <button class="pp-sidebar-btn" id="themeToggle" aria-label="Toggle theme">
+                    <i class="bi bi-moon-stars"></i>
+                </button>
+                <span class="pp-user-name">{{ current_user.display_name }}</span>
+                <form action="{{ url_for('security.logout') }}" method="POST" style="margin:0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="pp-sidebar-btn" title="Log out" aria-label="Log out">
+                        <i class="bi bi-box-arrow-right"></i>
+                    </button>
+                </form>
+            </div>
+        </aside>
+
+        <div class="pp-sidebar-backdrop" id="sidebarBackdrop"></div>
+
+        <!-- Main Content -->
+        <div class="pp-content" id="content">
+            <header class="pp-topbar">
+                <button class="pp-mobile-toggle" id="mobileToggle" aria-label="Open menu">
+                    <i class="bi bi-list"></i>
+                </button>
+                <nav aria-label="breadcrumb">
+                    {% block breadcrumb %}{% endblock %}
+                </nav>
+                <div class="pp-topbar-actions">
+                    {% block actions %}{% endblock %}
+                </div>
+            </header>
+
+            <main class="pp-main" role="main">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                {% for category, message in messages %}
+                <div class="pp-alert pp-alert-{{ category }}">
+                    {{ message }}
+                    <button type="button" style="margin-left:auto; background:none; border:none; opacity:0.5; cursor:pointer;" onclick="this.parentElement.remove()" aria-label="Dismiss">&times;</button>
+                </div>
+                {% endfor %}
+                {% endif %}
+                {% endwith %}
+
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <!-- Global Modal -->
+    <div class="modal fade" id="globalModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="globalModalTitle"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="globalModalBody"></div>
+                <div class="modal-footer" id="globalModalFooter">
+                    <button type="button" class="pp-btn pp-btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="pp-btn pp-btn-primary" id="globalModalSubmit">Create</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/marked.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/api.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/modal.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    {% block scripts %}{% endblock %}
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('{{ url_for("static", filename="js/sw.js") }}').catch(function() {});
+        }
+    </script>
+</body>
+</html>

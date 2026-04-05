@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}{% if item %}Edit {{ item.item_key }}{% else %}New Work Item{% endif %} - PyPrMan{% endblock %}
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('projects.detail', key=project.key) }}">{{ project.key }}</a></li>
+    {% if item %}
+    <li class="breadcrumb-item"><a href="{{ url_for('work_items.detail', key=project.key, item_key=item.item_key) }}">{{ item.item_key }}</a></li>
+    <li class="breadcrumb-item active">Edit</li>
+    {% else %}
+    <li class="breadcrumb-item active">New Item</li>
+    {% endif %}
+</ol>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:640px;">
+    <h1 style="font-size:1.25rem; margin-bottom:24px;">{% if item %}Edit {{ item.item_key }}{% else %}New Work Item{% endif %}</h1>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if parent_id %}
+        <input type="hidden" name="parent_id" value="{{ parent_id }}">
+        {% endif %}
+
+        <div class="pp-form-group">
+            <label class="pp-form-label" for="title">Title</label>
+            <input type="text" class="pp-input" id="title" name="title" value="{{ item.title if item else '' }}" required>
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-4">
+                <label class="pp-form-label" for="item_type_id">Type</label>
+                <select class="pp-select" id="item_type_id" name="item_type_id">
+                    {% for t in project.item_types %}
+                    <option value="{{ t.id }}" {% if item and item.item_type_id == t.id %}selected{% elif not item and t.is_default %}selected{% endif %}>{{ t.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="pp-form-label" for="status_id">Status</label>
+                <select class="pp-select" id="status_id" name="status_id">
+                    {% for s in project.statuses %}
+                    <option value="{{ s.id }}" {% if item and item.status_id == s.id %}selected{% elif not item and s.is_default %}selected{% endif %}>{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="pp-form-label" for="priority">Priority</label>
+                <select class="pp-select" id="priority" name="priority">
+                    {% for p in ['none', 'low', 'medium', 'high', 'critical'] %}
+                    <option value="{{ p }}" {% if item and item.priority == p %}selected{% elif not item and p == 'medium' %}selected{% endif %}>{{ p|capitalize }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-4">
+                <label class="pp-form-label" for="epic_id">Epic</label>
+                <select class="pp-select" id="epic_id" name="epic_id">
+                    <option value="">None</option>
+                    {% for e in project.epics %}
+                    <option value="{{ e.id }}" {% if item and item.epic_id == e.id %}selected{% endif %}>{{ e.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="pp-form-label" for="sprint_id">Sprint</label>
+                <select class="pp-select" id="sprint_id" name="sprint_id">
+                    <option value="">None</option>
+                    {% for sp in sprints %}
+                    <option value="{{ sp.id }}" {% if item and item.sprint_id == sp.id %}selected{% endif %}>{{ sp.name }}{% if sp.is_active %} (Active){% endif %}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="pp-form-label" for="assignee_id">Assignee</label>
+                <select class="pp-select" id="assignee_id" name="assignee_id">
+                    <option value="">Unassigned</option>
+                    {% for u in members %}
+                    <option value="{{ u.id }}" {% if item and item.assignee_id == u.id %}selected{% endif %}>{{ u.display_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-4">
+                <label class="pp-form-label" for="story_points">Story Points</label>
+                <input type="number" class="pp-input" id="story_points" name="story_points" min="0" value="{{ item.story_points if item and item.story_points is not none else '' }}" placeholder="—">
+            </div>
+        </div>
+
+        <div class="pp-form-group">
+            <label class="pp-form-label" for="description">Description</label>
+            <textarea class="pp-input" id="description" name="description" rows="5">{{ item.description if item else '' }}</textarea>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="pp-btn pp-btn-primary">{% if item %}Update{% else %}Create{% endif %}</button>
+            <a href="{{ url_for('projects.detail', key=project.key) }}" class="pp-btn pp-btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

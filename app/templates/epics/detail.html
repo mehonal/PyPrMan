@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}{{ epic.name }} - {{ project.key }} - PyPrMan{% endblock %}
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('projects.detail', key=project.key) }}">{{ project.key }}</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('epics.list_epics', key=project.key) }}">Epics</a></li>
+    <li class="breadcrumb-item active">{{ epic.name }}</li>
+</ol>
+{% endblock %}
+{% block actions %}
+<a href="{{ url_for('epics.edit_epic', key=project.key, epic_id=epic.id) }}" class="pp-btn pp-btn-secondary pp-btn-sm">
+    <i class="bi bi-pencil"></i> Edit
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+    <span class="pp-status-dot" style="background:{{ epic.color }}; width:16px; height:16px;"></span>
+    <h1 style="font-size:1.25rem; margin:0;">{{ epic.name }}</h1>
+    <span class="pp-badge pp-badge-muted">{{ epic.work_items|length }} items</span>
+</div>
+
+{% if epic.description %}
+<div class="pp-card mb-4">
+    <div class="pp-card-body">
+        <p style="margin:0; white-space:pre-wrap; font-size:0.875rem;">{{ epic.description }}</p>
+    </div>
+</div>
+{% endif %}
+
+<div class="pp-card">
+    <div class="pp-card-header">
+        Work Items
+        <span style="margin-left:auto; font-size:0.75rem; color:var(--pp-text-muted);">{{ epic.work_items|length }} total</span>
+    </div>
+    <div class="pp-card-body p-0">
+        {% for item in epic.work_items %}
+        <a href="{{ url_for('work_items.detail', key=project.key, item_key=item.item_key) }}" class="pp-list-item">
+            <span class="item-key">{{ item.item_key }}</span>
+            <i class="{{ item.item_type.icon }}" style="color:{{ item.item_type.color }}; font-size:0.875rem;" aria-hidden="true"></i>
+            <span class="item-title">{{ item.title }}</span>
+            <span class="item-meta">
+                <span class="pp-status-dot" style="background:{{ item.status.color }}" title="{{ item.status.name }}"></span>
+                <i class="{{ item.priority_icon }}" style="color:{{ item.priority_color }}; font-size:0.75rem;" title="{{ item.priority }}"></i>
+                <span class="pp-sp-badge" data-sp-edit data-item-id="{{ item.id }}" data-sp="{{ item.story_points if item.story_points is not none else '' }}" title="Story points">{{ item.story_points if item.story_points is not none else '—' }}</span>
+                {% if item.assignee %}
+                <span class="pp-badge pp-badge-muted">{{ item.assignee.display_name[:8] }}</span>
+                {% endif %}
+            </span>
+        </a>
+        {% endfor %}
+        {% if not epic.work_items %}
+        <div class="pp-empty" style="padding:32px;">
+            <p style="margin:0;">No work items in this epic yet.</p>
+            <button class="pp-btn pp-btn-primary pp-btn-sm" onclick="ppModal.createItem('{{ project.key }}', {epic_id: {{ epic.id }}})" style="margin-top:8px;">Create one</button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
