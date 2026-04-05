@@ -20,10 +20,11 @@ def create_app(config_name=None):
 
     csrf.init_app(app)
 
-    from app.extensions import db, migrate, security
+    from app.extensions import db, mail, migrate, security
     from app.models.user import User, Role
 
     db.init_app(app)
+    mail.init_app(app)
     migrate.init_app(app, db)
 
     from flask_security import SQLAlchemyUserDatastore

@@ -3,6 +3,7 @@ Flask-SQLAlchemy==3.1.1
 Flask-Migrate==4.1.0
 Flask-Security-Too==5.7.1
 Flask-WTF==1.2.2
+Flask-Mail==0.10.0
 email-validator==2.3.0
 argon2-cffi==25.1.0
 python-dotenv==1.2.2

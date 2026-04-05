@@ -55,7 +55,13 @@ class ProductionConfig(Config):
     def init_app(cls, app):
         missing = [
             key
-            for key in ("SECRET_KEY", "SECURITY_PASSWORD_SALT", "DATABASE_URL")
+            for key in (
+                "SECRET_KEY",
+                "SECURITY_PASSWORD_SALT",
+                "DATABASE_URL",
+                "MAIL_SERVER",
+                "MAIL_DEFAULT_SENDER",
+            )
             if not os.environ.get(key)
         ]
         if missing:
@@ -65,6 +71,12 @@ class ProductionConfig(Config):
         app.config["SECRET_KEY"] = os.environ["SECRET_KEY"]
         app.config["SECURITY_PASSWORD_SALT"] = os.environ["SECURITY_PASSWORD_SALT"]
         app.config["SQLALCHEMY_DATABASE_URI"] = os.environ["DATABASE_URL"]
+        app.config["MAIL_SERVER"] = os.environ["MAIL_SERVER"]
+        app.config["MAIL_PORT"] = int(os.environ.get("MAIL_PORT", 587))
+        app.config["MAIL_USE_TLS"] = os.environ.get("MAIL_USE_TLS", "true").lower() == "true"
+        app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME")
+        app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD")
+        app.config["MAIL_DEFAULT_SENDER"] = os.environ["MAIL_DEFAULT_SENDER"]
 
 
 config = {
