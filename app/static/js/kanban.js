@@ -26,6 +26,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         card.addEventListener('keydown', function (e) {
             if (e.key === 'Enter' || e.key === ' ') {
+                var tag = e.target.tagName;
+                if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON' || e.target.closest('[data-sp-edit]')) return;
                 var link = card.querySelector('a');
                 if (link) link.click();
             }

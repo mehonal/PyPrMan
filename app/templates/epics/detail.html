@@ -32,6 +32,9 @@
     <div class="pp-card-header">
         Work Items
         <span style="margin-left:auto; font-size:0.75rem; color:var(--pp-text-muted);">{{ epic.work_items|length }} total</span>
+        <button class="pp-btn pp-btn-ghost pp-btn-sm" style="margin-left:8px;" onclick="ppModal.createItem('{{ project.key }}', {epic_id: {{ epic.id }}})">
+            <i class="bi bi-plus-lg"></i>
+        </button>
     </div>
     <div class="pp-card-body p-0">
         {% for item in epic.work_items %}

@@ -23,6 +23,9 @@ class User(db.Model, UserMixin):
     fs_uniquifier = db.Column(db.String(64), unique=True, nullable=False)
     confirmed_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
+    _display_name = db.Column("display_name", db.String(100), default="")
+    default_assignee = db.Column(db.String(20), default="unassigned")
+    board_sprint_filter = db.Column(db.Boolean, default=False)
 
     roles = db.relationship(
         "Role", secondary=roles_users, backref=db.backref("users", lazy="dynamic")
@@ -30,4 +33,8 @@ class User(db.Model, UserMixin):
 
     @property
     def display_name(self):
-        return self.email.split("@")[0]
+        return self._display_name or self.email.split("@")[0]
+
+    @display_name.setter
+    def display_name(self, value):
+        self._display_name = value

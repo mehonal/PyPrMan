@@ -47,6 +47,47 @@ def _user_project_ids():
     ]
 
 
+@api_bp.route("/search")
+@auth_required()
+def search():
+    q = request.args.get("q", "").strip()
+    if not q or len(q) < 2:
+        return jsonify({"results": []})
+
+    project_ids = _user_project_ids()
+    if not project_ids:
+        return jsonify({"results": []})
+
+    items = (
+        WorkItem.query.filter(
+            WorkItem.project_id.in_(project_ids),
+            db.or_(
+                WorkItem.title.ilike(f"%{q}%"),
+                WorkItem.item_key.ilike(f"%{q}%"),
+            ),
+        )
+        .order_by(WorkItem.updated_at.desc())
+        .limit(10)
+        .all()
+    )
+
+    return jsonify({
+        "results": [
+            {
+                "id": item.id,
+                "item_key": item.item_key,
+                "title": item.title,
+                "project_key": item.project.key,
+                "status": item.status.name,
+                "status_color": item.status.color,
+                "type_icon": item.item_type.icon,
+                "type_color": item.item_type.color,
+            }
+            for item in items
+        ]
+    })
+
+
 @api_bp.route("/projects/<key>/form-options")
 @auth_required()
 def form_options(key):
@@ -81,6 +122,8 @@ def form_options(key):
                 {"id": m.user.id, "name": m.user.display_name}
                 for m in members
             ],
+            "default_assignee": current_user.default_assignee,
+            "current_user_id": current_user.id,
         }
     )
 

@@ -44,7 +44,7 @@
         <div class="pp-card mb-4">
             <div class="pp-card-header">
                 Subtasks{% if item.subtasks %} ({{ item.subtasks|length }}){% endif %}
-                <button class="pp-btn pp-btn-ghost pp-btn-sm" style="margin-left:auto;" onclick="ppModal.createItem('{{ project.key }}', {parent_id: {{ item.id }}})">
+                <button class="pp-btn pp-btn-ghost pp-btn-sm" style="margin-left:auto;" onclick="ppModal.createItem('{{ project.key }}', {parent_id: {{ item.id }}{% if item.epic_id %}, epic_id: {{ item.epic_id }}{% endif %}{% if item.sprint_id %}, sprint_id: {{ item.sprint_id }}{% endif %}{% if item.assignee_id %}, assignee_id: {{ item.assignee_id }}{% endif %}})">
                     <i class="bi bi-plus-lg"></i>
                 </button>
             </div>

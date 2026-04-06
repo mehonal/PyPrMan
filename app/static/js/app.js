@@ -2,8 +2,6 @@ document.addEventListener('DOMContentLoaded', function () {
     // ---- Theme Toggle ----
     var themeToggle = document.getElementById('themeToggle');
     var html = document.documentElement;
-    var stored = localStorage.getItem('theme');
-    if (stored) html.setAttribute('data-bs-theme', stored);
     updateThemeIcon();
 
     if (themeToggle) {
@@ -133,11 +131,71 @@ document.addEventListener('DOMContentLoaded', function () {
 
         input.addEventListener('blur', save);
         input.addEventListener('keydown', function (ev) {
-            if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
-            if (ev.key === 'Escape') { input.value = current; input.blur(); }
+            if (ev.key === 'Enter') { ev.preventDefault(); ev.stopPropagation(); input.blur(); }
+            if (ev.key === 'Escape') { ev.stopPropagation(); input.value = current; input.blur(); }
         });
-        input.addEventListener('click', function (ev) { ev.stopPropagation(); });
+        input.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); });
     });
+
+    // ---- Global Search ----
+    var searchInput = document.getElementById('globalSearch');
+    var searchResults = document.getElementById('searchResults');
+    var searchWrapper = document.getElementById('searchWrapper');
+    var searchToggle = document.getElementById('searchToggle');
+    var searchTimer = null;
+
+    if (searchToggle && searchWrapper) {
+        searchToggle.addEventListener('click', function () {
+            searchWrapper.classList.add('open');
+            setTimeout(function () { searchInput.focus(); }, 50);
+        });
+    }
+
+    function closeSearch() {
+        searchResults.style.display = 'none';
+        if (searchWrapper) searchWrapper.classList.remove('open');
+    }
+
+    if (searchInput && searchResults) {
+        searchInput.addEventListener('input', function () {
+            clearTimeout(searchTimer);
+            var q = searchInput.value.trim();
+            if (q.length < 2) {
+                searchResults.style.display = 'none';
+                return;
+            }
+            searchTimer = setTimeout(function () {
+                api.get('/api/search?q=' + encodeURIComponent(q)).then(function (data) {
+                    if (!data.results.length) {
+                        searchResults.innerHTML = '<div class="pp-search-empty">No results found</div>';
+                    } else {
+                        searchResults.innerHTML = data.results.map(function (r) {
+                            return '<a href="/projects/' + r.project_key + '/items/' + r.item_key + '" class="pp-search-result">' +
+                                '<i class="' + r.type_icon + '" style="color:' + r.type_color + '; font-size:0.875rem;"></i>' +
+                                '<span class="result-key">' + r.item_key + '</span>' +
+                                '<span class="result-title">' + r.title.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>' +
+                                '<span class="pp-status-dot" style="background:' + r.status_color + '" title="' + r.status + '"></span>' +
+                                '</a>';
+                        }).join('');
+                    }
+                    searchResults.style.display = 'block';
+                });
+            }, 250);
+        });
+
+        searchInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                closeSearch();
+                searchInput.blur();
+            }
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!e.target.closest('.pp-search-wrapper')) {
+                closeSearch();
+            }
+        });
+    }
 
     // ---- Auto-dismiss alerts after 5s ----
     document.querySelectorAll('.pp-alert').forEach(function (alert) {

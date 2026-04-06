@@ -43,6 +43,7 @@ def create_app(config_name=None):
     from app.blueprints.backlog import backlog_bp
     from app.blueprints.settings import settings_bp
     from app.blueprints.api import api_bp
+    from app.blueprints.user_settings import user_settings_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
@@ -54,6 +55,7 @@ def create_app(config_name=None):
     app.register_blueprint(backlog_bp)
     app.register_blueprint(settings_bp)
     app.register_blueprint(api_bp)
+    app.register_blueprint(user_settings_bp)
 
     @app.context_processor
     def inject_sidebar_data():

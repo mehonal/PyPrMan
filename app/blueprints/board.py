@@ -4,6 +4,7 @@ from flask_security import auth_required, current_user
 from app.extensions import db
 from app.models.activity import ActivityLog
 from app.models.project import Project, ProjectMembership
+from app.models.sprint import Sprint, SprintProject
 from app.models.status import Status
 from app.models.work_item import WorkItem
 
@@ -28,7 +29,25 @@ def project_board(key):
         abort(403)
 
     statuses = Status.query.filter_by(project_id=project.id).order_by(Status.position).all()
-    items = WorkItem.query.filter_by(project_id=project.id).order_by(WorkItem.position).all()
+
+    sprint_filter = request.args.get("sprint_filter")
+    if sprint_filter is not None:
+        sprint_filter_active = sprint_filter == "1"
+    else:
+        sprint_filter_active = current_user.board_sprint_filter
+
+    query = WorkItem.query.filter_by(project_id=project.id)
+    active_sprint = None
+    if sprint_filter_active:
+        active_sprint = (
+            Sprint.query.join(SprintProject)
+            .filter(SprintProject.project_id == project.id, Sprint.is_active.is_(True))
+            .first()
+        )
+        if active_sprint:
+            query = query.filter_by(sprint_id=active_sprint.id)
+
+    items = query.order_by(WorkItem.position).all()
 
     columns = {}
     for s in statuses:
@@ -43,6 +62,8 @@ def project_board(key):
         columns=columns,
         statuses=statuses,
         is_aggregated=False,
+        sprint_filter_active=sprint_filter_active,
+        active_sprint=active_sprint,
     )
 
 
@@ -64,11 +85,27 @@ def aggregated_board():
         .order_by(Status.position)
         .all()
     )
-    items = (
-        WorkItem.query.filter(WorkItem.project_id.in_(filtered_ids))
-        .order_by(WorkItem.position)
-        .all()
-    )
+
+    sprint_filter = request.args.get("sprint_filter")
+    if sprint_filter is not None:
+        sprint_filter_active = sprint_filter == "1"
+    else:
+        sprint_filter_active = current_user.board_sprint_filter
+
+    query = WorkItem.query.filter(WorkItem.project_id.in_(filtered_ids))
+    active_sprint = None
+    if sprint_filter_active:
+        active_sprints = (
+            Sprint.query.join(SprintProject)
+            .filter(SprintProject.project_id.in_(filtered_ids), Sprint.is_active.is_(True))
+            .all()
+        )
+        active_sprint_ids = [s.id for s in active_sprints]
+        if active_sprint_ids:
+            query = query.filter(WorkItem.sprint_id.in_(active_sprint_ids))
+            active_sprint = active_sprints[0] if len(active_sprints) == 1 else True
+
+    items = query.order_by(WorkItem.position).all()
 
     category_order = ["backlog", "todo", "in_progress", "done"]
     seen_categories = {}
@@ -94,6 +131,8 @@ def aggregated_board():
         projects=projects,
         is_aggregated=True,
         filter_project_id=filter_project_id,
+        sprint_filter_active=sprint_filter_active,
+        active_sprint=active_sprint,
     )
 
 

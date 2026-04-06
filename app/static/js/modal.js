@@ -78,6 +78,15 @@ var ppModal = {
     createItem: function (projectKey, defaults) {
         defaults = defaults || {};
         api.get('/api/projects/' + projectKey + '/form-options').then(function (data) {
+            var defEpic = defaults.epic_id || null;
+            var defSprint = defaults.sprint_id || null;
+            var defAssignee = defaults.assignee_id || null;
+
+            // Apply default assignee preference if no explicit default
+            if (!defAssignee && data.default_assignee === 'me' && data.current_user_id) {
+                defAssignee = data.current_user_id;
+            }
+
             var html = '<div class="pp-form-group">' +
                 '<label class="pp-form-label">Title</label>' +
                 '<input type="text" class="pp-input" id="modalItemTitle" required>' +
@@ -112,7 +121,8 @@ var ppModal = {
                 '<select class="pp-input pp-select" id="modalItemEpic">' +
                 '<option value="">None</option>' +
                 data.epics.map(function (e) {
-                    return '<option value="' + ppModal._escAttr(e.id) + '">' + ppModal._escHtml(e.name) + '</option>';
+                    var sel = defEpic == e.id;
+                    return '<option value="' + ppModal._escAttr(e.id) + '"' + (sel ? ' selected' : '') + '>' + ppModal._escHtml(e.name) + '</option>';
                 }).join('') +
                 '</select></div></div>' +
                 '<div class="col-md-4"><div class="pp-form-group">' +
@@ -120,7 +130,8 @@ var ppModal = {
                 '<select class="pp-input pp-select" id="modalItemSprint">' +
                 '<option value="">None</option>' +
                 data.sprints.map(function (s) {
-                    return '<option value="' + ppModal._escAttr(s.id) + '">' + ppModal._escHtml(s.name) + (s.is_active ? ' (Active)' : '') + '</option>';
+                    var sel = defSprint == s.id;
+                    return '<option value="' + ppModal._escAttr(s.id) + '"' + (sel ? ' selected' : '') + '>' + ppModal._escHtml(s.name) + (s.is_active ? ' (Active)' : '') + '</option>';
                 }).join('') +
                 '</select></div></div>' +
                 '<div class="col-md-4"><div class="pp-form-group">' +
@@ -128,7 +139,8 @@ var ppModal = {
                 '<select class="pp-input pp-select" id="modalItemAssignee">' +
                 '<option value="">Unassigned</option>' +
                 data.members.map(function (m) {
-                    return '<option value="' + ppModal._escAttr(m.id) + '">' + ppModal._escHtml(m.name) + '</option>';
+                    var sel = defAssignee == m.id;
+                    return '<option value="' + ppModal._escAttr(m.id) + '"' + (sel ? ' selected' : '') + '>' + ppModal._escHtml(m.name) + '</option>';
                 }).join('') +
                 '</select></div></div>' +
                 '</div>' +

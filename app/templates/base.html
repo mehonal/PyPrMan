@@ -9,6 +9,9 @@
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='icons/icon-192.png') }}">
     <title>{% block title %}PyPrMan{% endblock %}</title>
+    <script>
+        (function(){var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-bs-theme',t);})();
+    </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap-icons.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
@@ -77,6 +80,9 @@
                 <button class="pp-sidebar-btn" id="themeToggle" aria-label="Toggle theme">
                     <i class="bi bi-moon-stars"></i>
                 </button>
+                <a href="{{ url_for('user_settings.profile') }}" class="pp-sidebar-btn" title="Settings" aria-label="Settings">
+                    <i class="bi bi-gear"></i>
+                </a>
                 <span class="pp-user-name">{{ current_user.display_name }}</span>
                 <form action="{{ url_for('security.logout') }}" method="POST" style="margin:0;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -98,6 +104,16 @@
                 <nav aria-label="breadcrumb">
                     {% block breadcrumb %}{% endblock %}
                 </nav>
+                <div class="pp-search-wrapper" id="searchWrapper">
+                    <button class="pp-search-toggle" id="searchToggle" type="button" aria-label="Search">
+                        <i class="bi bi-search"></i>
+                    </button>
+                    <div class="pp-search-field">
+                        <i class="bi bi-search pp-search-icon"></i>
+                        <input type="text" class="pp-input pp-search-input" id="globalSearch" placeholder="Search items..." autocomplete="off">
+                    </div>
+                    <div class="pp-search-results" id="searchResults" style="display:none;"></div>
+                </div>
                 <div class="pp-topbar-actions">
                     {% block actions %}{% endblock %}
                 </div>

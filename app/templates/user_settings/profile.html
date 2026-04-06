@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Settings - PyPrMan{% endblock %}
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item active">Settings</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-md-8">
+        <h1 style="font-size:1.25rem; margin-bottom:24px;">Profile Settings</h1>
+
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="pp-card mb-4">
+                <div class="pp-card-header">Profile</div>
+                <div class="pp-card-body">
+                    <div class="pp-form-group">
+                        <label class="pp-form-label" for="display_name">Display Name</label>
+                        <input type="text" class="pp-input" id="display_name" name="display_name"
+                               value="{{ current_user._display_name or '' }}"
+                               placeholder="{{ current_user.email.split('@')[0] }}"
+                               maxlength="100">
+                        <small style="color:var(--pp-text-muted); font-size:0.75rem;">Leave empty to use your email prefix ({{ current_user.email.split('@')[0] }})</small>
+                    </div>
+
+                    <div class="pp-form-group" style="margin-top:16px;">
+                        <label class="pp-form-label">Email</label>
+                        <input type="text" class="pp-input" value="{{ current_user.email }}" disabled>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pp-card mb-4">
+                <div class="pp-card-header">Preferences</div>
+                <div class="pp-card-body">
+                    <div class="pp-form-group">
+                        <label class="pp-form-label" for="default_assignee">Default Assignee for New Items</label>
+                        <select class="pp-input pp-select" id="default_assignee" name="default_assignee">
+                            <option value="unassigned" {% if current_user.default_assignee == 'unassigned' %}selected{% endif %}>Unassigned</option>
+                            <option value="me" {% if current_user.default_assignee == 'me' %}selected{% endif %}>Me</option>
+                        </select>
+                    </div>
+
+                    <div class="pp-form-group" style="margin-top:16px;">
+                        <label class="pp-form-label">Default Board View</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="board_sprint_filter" name="board_sprint_filter"
+                                   {% if current_user.board_sprint_filter %}checked{% endif %}>
+                            <label class="form-check-label" for="board_sprint_filter">
+                                Default to showing only current sprint items on the board
+                            </label>
+                        </div>
+                        <small style="color:var(--pp-text-muted); font-size:0.75rem;">Sets the default filter when you open any board. You can always toggle it per-visit using the Sprint button on the board.</small>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="pp-btn pp-btn-primary">Save Settings</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

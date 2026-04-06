@@ -11,8 +11,11 @@
 </ol>
 {% endblock %}
 {% block actions %}
+<button class="pp-btn {% if sprint_filter_active %}pp-btn-primary{% else %}pp-btn-secondary{% endif %} pp-btn-sm" onclick="location.href='?sprint_filter={{ '0' if sprint_filter_active else '1' }}{% if is_aggregated and filter_project_id %}&amp;project_id={{ filter_project_id }}{% endif %}'" title="{% if sprint_filter_active %}Showing current sprint only{% else %}Showing all items{% endif %}">
+    <i class="bi bi-lightning"></i> Sprint
+</button>
 {% if is_aggregated and projects %}
-<select class="pp-select" style="width:auto; font-size:0.8125rem;" onchange="location.href='?project_id='+this.value">
+<select class="pp-select" style="width:auto; font-size:0.8125rem;" onchange="location.href='?project_id='+this.value+'&sprint_filter={{ '1' if sprint_filter_active else '0' }}'">
     <option value="">All Projects</option>
     {% for p in projects %}
     <option value="{{ p.id }}" {% if filter_project_id == p.id %}selected{% endif %}>{{ p.key }} - {{ p.name }}</option>
