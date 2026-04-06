@@ -28,7 +28,21 @@ def list_sprints():
         .order_by(Sprint.start_date.desc().nullslast(), Sprint.id.desc())
         .all()
     )
-    return render_template("sprints/list.html", sprints=sprints)
+    completed_sprints = [
+        s for s in sprints if s.completed_sp_snapshot is not None
+    ][:5]
+    avg_velocity = None
+    if completed_sprints:
+        avg_velocity = round(
+            sum(s.completed_sp_snapshot for s in completed_sprints)
+            / len(completed_sprints)
+        )
+    return render_template(
+        "sprints/list.html",
+        sprints=sprints,
+        avg_velocity=avg_velocity,
+        velocity_sprint_count=len(completed_sprints),
+    )
 
 
 @sprints_bp.route("/new", methods=["GET", "POST"])
@@ -153,6 +167,15 @@ def complete_sprint(sprint_id):
     ).first()
     if not membership:
         abort(403)
+    sprint.committed_sp_snapshot = sum(
+        i.story_points or 0 for i in sprint.work_items
+    )
+    sprint.completed_sp_snapshot = sum(
+        i.story_points or 0
+        for i in sprint.work_items
+        if i.status.category == "done"
+    )
+    sprint.completed_at = datetime.utcnow()
     sprint.is_active = False
     db.session.commit()
     flash("Sprint completed.", "success")

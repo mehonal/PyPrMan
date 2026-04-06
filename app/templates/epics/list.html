@@ -24,6 +24,15 @@
             {% endif %}
         </div>
         <span class="pp-badge pp-badge-muted">{{ epic.work_items|length }} items</span>
+        {% set stats = epic_stats.get(epic.id, {}) %}
+        {% if stats.get('total') %}
+        <div class="d-flex align-items-center gap-2" style="min-width:120px;">
+            <div class="pp-progress-bar">
+                <div class="pp-progress-fill" style="width:{{ stats.pct }}%; background:{{ epic.color }};"></div>
+            </div>
+            <span style="font-size:0.6875rem; color:var(--pp-text-muted); white-space:nowrap;">{{ stats.done }} / {{ stats.total }} SP</span>
+        </div>
+        {% endif %}
         <a href="{{ url_for('epics.edit_epic', key=project.key, epic_id=epic.id) }}" class="pp-btn pp-btn-ghost pp-btn-sm">
             <i class="bi bi-pencil"></i>
         </a>

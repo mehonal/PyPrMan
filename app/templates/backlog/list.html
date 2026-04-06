@@ -12,12 +12,26 @@
 {% endblock %}
 {% block actions %}
 {% if is_aggregated and projects %}
-<select class="pp-select" style="width:auto; font-size:0.8125rem;" onchange="location.href='?project_id='+this.value">
-    <option value="">All Projects</option>
-    {% for p in projects %}
-    <option value="{{ p.id }}" {% if filter_project_id == p.id %}selected{% endif %}>{{ p.key }} - {{ p.name }}</option>
-    {% endfor %}
-</select>
+<div class="pp-filter-wrap">
+    <i class="bi bi-folder pp-filter-icon{% if filter_project_id %} active{% endif %}" title="Filter by project"></i>
+    <select class="pp-select pp-filter-select" onchange="location.href='?project_id='+this.value+'{% if filter_epic_id %}&amp;epic_id={{ filter_epic_id }}{% endif %}'">
+        <option value="">All Projects</option>
+        {% for p in projects %}
+        <option value="{{ p.id }}" {% if filter_project_id == p.id %}selected{% endif %}>{{ p.key }} - {{ p.name }}</option>
+        {% endfor %}
+    </select>
+</div>
+{% endif %}
+{% if epics %}
+<div class="pp-filter-wrap">
+    <i class="bi bi-collection pp-filter-icon{% if filter_epic_id %} active{% endif %}" title="Filter by epic"></i>
+    <select class="pp-select pp-filter-select" onchange="location.href='?epic_id='+this.value+'{% if is_aggregated and filter_project_id %}&amp;project_id={{ filter_project_id }}{% endif %}'">
+        <option value="">All Epics</option>
+        {% for epic in epics %}
+        <option value="{{ epic.id }}" {% if filter_epic_id == epic.id %}selected{% endif %}>{{ epic.name }}</option>
+        {% endfor %}
+    </select>
+</div>
 {% endif %}
 {% if project %}
 <button class="pp-btn pp-btn-primary pp-btn-sm" onclick="ppModal.createItem('{{ project.key }}')">
@@ -36,7 +50,14 @@
         {% if sprint.start_date %}
         <span style="font-size:0.75rem; color:var(--pp-text-muted); margin-left:8px;">{{ sprint.start_date.strftime('%b %d') }}{% if sprint.end_date %} - {{ sprint.end_date.strftime('%b %d') }}{% endif %}</span>
         {% endif %}
+        {% if sprint.goal %}
+        <span class="pp-goal-text" title="{{ sprint.goal }}">{{ sprint.goal }}</span>
+        {% endif %}
         <span class="pp-badge pp-badge-muted" style="margin-left:auto;">{{ sprint_items.get(sprint.id, [])|length }} items</span>
+        {% set sp_committed = sprint.committed_sp %}
+        {% if sp_committed %}
+        <span class="pp-sp-badge" style="cursor:default;" title="Story points: {{ sprint.completed_sp }} done / {{ sp_committed }} committed">{{ sp_committed }} SP{% if sprint.completed_sp %} ({{ sprint.completed_sp }} done){% endif %}</span>
+        {% endif %}
     </div>
     <div class="pp-card-body p-0" data-backlog-group="{{ sprint.id }}">
         {% for item in sprint_items.get(sprint.id, []) %}
@@ -50,6 +71,7 @@
             <span class="item-meta">
                 <span class="pp-status-dot" style="background:{{ item.status.color }}" title="{{ item.status.name }}"></span>
                 <i class="{{ item.priority_icon }}" style="color:{{ item.priority_color }}; font-size:0.75rem;" title="{{ item.priority }}"></i>
+                {% if item.epic %}<span class="pp-status-dot" style="background:{{ item.epic.color }}; width:8px; height:8px;" title="{{ item.epic.name }}"></span>{% endif %}
                 <span class="pp-sp-badge" data-sp-edit data-item-id="{{ item.id }}" data-sp="{{ item.story_points if item.story_points is not none else '' }}" title="Story points">{{ item.story_points if item.story_points is not none else '—' }}</span>
                 {% if item.assignee %}<span class="pp-badge pp-badge-muted">{{ item.assignee.display_name[:8] }}</span>{% endif %}
             </span>
@@ -82,6 +104,7 @@
             <span class="item-meta">
                 <span class="pp-status-dot" style="background:{{ item.status.color }}" title="{{ item.status.name }}"></span>
                 <i class="{{ item.priority_icon }}" style="color:{{ item.priority_color }}; font-size:0.75rem;" title="{{ item.priority }}"></i>
+                {% if item.epic %}<span class="pp-status-dot" style="background:{{ item.epic.color }}; width:8px; height:8px;" title="{{ item.epic.name }}"></span>{% endif %}
                 <span class="pp-sp-badge" data-sp-edit data-item-id="{{ item.id }}" data-sp="{{ item.story_points if item.story_points is not none else '' }}" title="Story points">{{ item.story_points if item.story_points is not none else '—' }}</span>
                 {% if item.assignee %}<span class="pp-badge pp-badge-muted">{{ item.assignee.display_name[:8] }}</span>{% endif %}
             </span>

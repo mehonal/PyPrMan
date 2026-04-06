@@ -3,6 +3,7 @@ from flask_security import auth_required, current_user
 
 from app.extensions import db
 from app.models.activity import ActivityLog
+from app.models.epic import Epic
 from app.models.project import Project, ProjectMembership
 from app.models.sprint import Sprint, SprintProject
 from app.models.status import Status
@@ -47,6 +48,10 @@ def project_board(key):
         if active_sprint:
             query = query.filter_by(sprint_id=active_sprint.id)
 
+    filter_epic_id = request.args.get("epic_id", type=int)
+    if filter_epic_id:
+        query = query.filter_by(epic_id=filter_epic_id)
+
     items = query.order_by(WorkItem.position).all()
 
     columns = {}
@@ -56,6 +61,8 @@ def project_board(key):
             "work_items": [i for i in items if i.status_id == s.id],
         }
 
+    epics = Epic.query.filter_by(project_id=project.id).order_by(Epic.name).all()
+
     return render_template(
         "board/kanban.html",
         project=project,
@@ -64,6 +71,8 @@ def project_board(key):
         is_aggregated=False,
         sprint_filter_active=sprint_filter_active,
         active_sprint=active_sprint,
+        epics=epics,
+        filter_epic_id=filter_epic_id,
     )
 
 
@@ -105,6 +114,10 @@ def aggregated_board():
             query = query.filter(WorkItem.sprint_id.in_(active_sprint_ids))
             active_sprint = active_sprints[0] if len(active_sprints) == 1 else True
 
+    filter_epic_id = request.args.get("epic_id", type=int)
+    if filter_epic_id:
+        query = query.filter_by(epic_id=filter_epic_id)
+
     items = query.order_by(WorkItem.position).all()
 
     category_order = ["backlog", "todo", "in_progress", "done"]
@@ -123,6 +136,12 @@ def aggregated_board():
 
     sorted_columns = {k: columns[k] for k in category_order if k in columns}
 
+    epics = (
+        Epic.query.filter(Epic.project_id.in_(filtered_ids))
+        .order_by(Epic.name)
+        .all()
+    )
+
     return render_template(
         "board/kanban.html",
         project=None,
@@ -133,6 +152,8 @@ def aggregated_board():
         filter_project_id=filter_project_id,
         sprint_filter_active=sprint_filter_active,
         active_sprint=active_sprint,
+        epics=epics,
+        filter_epic_id=filter_epic_id,
     )
 
 

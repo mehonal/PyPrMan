@@ -12,6 +12,16 @@
 {% endblock %}
 
 {% block content %}
+{% if avg_velocity is not none %}
+<div class="pp-card mb-4">
+    <div class="pp-card-body d-flex align-items-center gap-3" style="padding:10px 16px;">
+        <i class="bi bi-speedometer2" style="font-size:1.125rem; color:var(--pp-primary);"></i>
+        <strong style="font-size:0.875rem;">Average Velocity:</strong>
+        <span class="pp-sp-badge" style="cursor:default; font-size:0.8125rem;">{{ avg_velocity }} SP / sprint</span>
+        <span style="font-size:0.75rem; color:var(--pp-text-muted);">(last {{ velocity_sprint_count }} sprint{{ 's' if velocity_sprint_count != 1 }})</span>
+    </div>
+</div>
+{% endif %}
 {% for sprint in sprints %}
 <div class="pp-card mb-3">
     <div class="pp-card-body">
@@ -25,13 +35,20 @@
             {% endfor %}
         </div>
         {% if sprint.goal %}
-        <p style="color:var(--pp-text-secondary); font-size:0.8125rem; margin-bottom:8px;">{{ sprint.goal }}</p>
+        <p class="pp-goal-text" style="margin-bottom:8px;" title="{{ sprint.goal }}">{{ sprint.goal }}</p>
         {% endif %}
         <div class="d-flex align-items-center gap-3 flex-wrap">
             {% if sprint.start_date %}
             <span style="font-size:0.75rem; color:var(--pp-text-muted);"><i class="bi bi-calendar"></i> {{ sprint.start_date.strftime('%b %d') }}{% if sprint.end_date %} - {{ sprint.end_date.strftime('%b %d, %Y') }}{% endif %}</span>
             {% endif %}
             <span style="font-size:0.75rem; color:var(--pp-text-muted);">{{ sprint.work_items|length }} items</span>
+            {% if sprint.completed_sp_snapshot is not none %}
+            <span class="pp-sp-badge" style="cursor:default;">{{ sprint.committed_sp_snapshot }} SP</span>
+            <span class="pp-sp-badge" style="cursor:default; background:var(--pp-success-subtle, #dcfce7); color:var(--pp-success, #16a34a);">{{ sprint.completed_sp_snapshot }} done</span>
+            {% elif sprint.committed_sp %}
+            <span class="pp-sp-badge" style="cursor:default;">{{ sprint.committed_sp }} SP</span>
+            <span class="pp-sp-badge" style="cursor:default; background:var(--pp-success-subtle, #dcfce7); color:var(--pp-success, #16a34a);">{{ sprint.completed_sp }} done</span>
+            {% endif %}
             <div style="margin-left:auto;" class="d-flex gap-2">
                 {% if not sprint.is_active %}
                 <form method="POST" action="{{ url_for('sprints.start_sprint', sprint_id=sprint.id) }}" class="d-inline">

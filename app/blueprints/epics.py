@@ -19,11 +19,25 @@ def _get_project(key):
     return project
 
 
+def _epic_sp_stats(epic):
+    total = sum(i.story_points or 0 for i in epic.work_items)
+    done = sum(
+        i.story_points or 0
+        for i in epic.work_items
+        if i.status.category == "done"
+    )
+    pct = round(done * 100 / total) if total else 0
+    return {"total": total, "done": done, "pct": pct}
+
+
 @epics_bp.route("/")
 @auth_required()
 def list_epics(key):
     project = _get_project(key)
-    return render_template("epics/list.html", project=project, epics=project.epics)
+    epic_stats = {epic.id: _epic_sp_stats(epic) for epic in project.epics}
+    return render_template(
+        "epics/list.html", project=project, epics=project.epics, epic_stats=epic_stats
+    )
 
 
 @epics_bp.route("/<int:epic_id>")
@@ -33,7 +47,8 @@ def detail_epic(key, epic_id):
     epic = Epic.query.get_or_404(epic_id)
     if epic.project_id != project.id:
         abort(404)
-    return render_template("epics/detail.html", project=project, epic=epic)
+    stats = _epic_sp_stats(epic)
+    return render_template("epics/detail.html", project=project, epic=epic, epic_stats=stats)
 
 
 @epics_bp.route("/new", methods=["GET", "POST"])

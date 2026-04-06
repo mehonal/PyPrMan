@@ -21,6 +21,9 @@ class Sprint(db.Model):
     is_active = db.Column(db.Boolean, default=False)
     created_by_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
+    completed_at = db.Column(db.DateTime)
+    committed_sp_snapshot = db.Column(db.Integer)
+    completed_sp_snapshot = db.Column(db.Integer)
 
     created_by = db.relationship("User", backref="created_sprints")
     sprint_projects = db.relationship(
@@ -31,3 +34,23 @@ class Sprint(db.Model):
     @property
     def projects(self):
         return [sp.project for sp in self.sprint_projects]
+
+    @property
+    def committed_sp(self):
+        return sum(i.story_points or 0 for i in self.work_items)
+
+    @property
+    def completed_sp(self):
+        return sum(
+            i.story_points or 0
+            for i in self.work_items
+            if i.status.category == "done"
+        )
+
+    @property
+    def in_progress_sp(self):
+        return sum(
+            i.story_points or 0
+            for i in self.work_items
+            if i.status.category == "in_progress"
+        )

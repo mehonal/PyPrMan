@@ -2,6 +2,7 @@ from flask import Blueprint, abort, jsonify, render_template, request
 from flask_security import auth_required, current_user
 
 from app.extensions import db
+from app.models.epic import Epic
 from app.models.project import Project, ProjectMembership
 from app.models.sprint import Sprint, SprintProject
 from app.models.work_item import WorkItem
@@ -33,11 +34,13 @@ def project_backlog(key):
         .all()
     )
 
-    items = (
-        WorkItem.query.filter_by(project_id=project.id, parent_id=None)
-        .order_by(WorkItem.position)
-        .all()
-    )
+    query = WorkItem.query.filter_by(project_id=project.id, parent_id=None)
+
+    filter_epic_id = request.args.get("epic_id", type=int)
+    if filter_epic_id:
+        query = query.filter_by(epic_id=filter_epic_id)
+
+    items = query.order_by(WorkItem.position).all()
 
     sprint_items = {}
     no_sprint_items = []
@@ -47,6 +50,8 @@ def project_backlog(key):
         else:
             no_sprint_items.append(item)
 
+    epics = Epic.query.filter_by(project_id=project.id).order_by(Epic.name).all()
+
     return render_template(
         "backlog/list.html",
         project=project,
@@ -54,6 +59,8 @@ def project_backlog(key):
         sprint_items=sprint_items,
         no_sprint_items=no_sprint_items,
         is_aggregated=False,
+        epics=epics,
+        filter_epic_id=filter_epic_id,
     )
 
 
@@ -77,13 +84,15 @@ def aggregated_backlog():
         .all()
     )
 
-    items = (
-        WorkItem.query.filter(
-            WorkItem.project_id.in_(filtered_ids), WorkItem.parent_id.is_(None)
-        )
-        .order_by(WorkItem.position)
-        .all()
+    query = WorkItem.query.filter(
+        WorkItem.project_id.in_(filtered_ids), WorkItem.parent_id.is_(None)
     )
+
+    filter_epic_id = request.args.get("epic_id", type=int)
+    if filter_epic_id:
+        query = query.filter_by(epic_id=filter_epic_id)
+
+    items = query.order_by(WorkItem.position).all()
 
     sprint_items = {}
     no_sprint_items = []
@@ -92,6 +101,12 @@ def aggregated_backlog():
             sprint_items.setdefault(item.sprint_id, []).append(item)
         else:
             no_sprint_items.append(item)
+
+    epics = (
+        Epic.query.filter(Epic.project_id.in_(filtered_ids))
+        .order_by(Epic.name)
+        .all()
+    )
 
     return render_template(
         "backlog/list.html",
@@ -102,6 +117,8 @@ def aggregated_backlog():
         no_sprint_items=no_sprint_items,
         is_aggregated=True,
         filter_project_id=filter_project_id,
+        epics=epics,
+        filter_epic_id=filter_epic_id,
     )
 
 

@@ -11,16 +11,30 @@
 </ol>
 {% endblock %}
 {% block actions %}
-<button class="pp-btn {% if sprint_filter_active %}pp-btn-primary{% else %}pp-btn-secondary{% endif %} pp-btn-sm" onclick="location.href='?sprint_filter={{ '0' if sprint_filter_active else '1' }}{% if is_aggregated and filter_project_id %}&amp;project_id={{ filter_project_id }}{% endif %}'" title="{% if sprint_filter_active %}Showing current sprint only{% else %}Showing all items{% endif %}">
+<button class="pp-btn {% if sprint_filter_active %}pp-btn-primary{% else %}pp-btn-secondary{% endif %} pp-btn-sm" onclick="location.href='?sprint_filter={{ '0' if sprint_filter_active else '1' }}{% if is_aggregated and filter_project_id %}&amp;project_id={{ filter_project_id }}{% endif %}{% if filter_epic_id %}&amp;epic_id={{ filter_epic_id }}{% endif %}'" title="{% if sprint_filter_active %}Showing current sprint only{% else %}Showing all items{% endif %}">
     <i class="bi bi-lightning"></i> Sprint
 </button>
+{% if epics %}
+<div class="pp-filter-wrap">
+    <i class="bi bi-collection pp-filter-icon{% if filter_epic_id %} active{% endif %}" title="Filter by epic"></i>
+    <select class="pp-select pp-filter-select" onchange="location.href='?epic_id='+this.value+'&sprint_filter={{ '1' if sprint_filter_active else '0' }}{% if is_aggregated and filter_project_id %}&amp;project_id={{ filter_project_id }}{% endif %}'">
+        <option value="">All Epics</option>
+        {% for epic in epics %}
+        <option value="{{ epic.id }}" {% if filter_epic_id == epic.id %}selected{% endif %}>{{ epic.name }}</option>
+        {% endfor %}
+    </select>
+</div>
+{% endif %}
 {% if is_aggregated and projects %}
-<select class="pp-select" style="width:auto; font-size:0.8125rem;" onchange="location.href='?project_id='+this.value+'&sprint_filter={{ '1' if sprint_filter_active else '0' }}'">
-    <option value="">All Projects</option>
-    {% for p in projects %}
-    <option value="{{ p.id }}" {% if filter_project_id == p.id %}selected{% endif %}>{{ p.key }} - {{ p.name }}</option>
-    {% endfor %}
-</select>
+<div class="pp-filter-wrap">
+    <i class="bi bi-folder pp-filter-icon{% if filter_project_id %} active{% endif %}" title="Filter by project"></i>
+    <select class="pp-select pp-filter-select" onchange="location.href='?project_id='+this.value+'&sprint_filter={{ '1' if sprint_filter_active else '0' }}'">
+        <option value="">All Projects</option>
+        {% for p in projects %}
+        <option value="{{ p.id }}" {% if filter_project_id == p.id %}selected{% endif %}>{{ p.key }} - {{ p.name }}</option>
+        {% endfor %}
+    </select>
+</div>
 {% endif %}
 {% if project %}
 <button class="pp-btn pp-btn-primary pp-btn-sm" onclick="ppModal.createItem('{{ project.key }}')">
@@ -30,13 +44,27 @@
 {% endblock %}
 
 {% block content %}
+{% if sprint_filter_active and active_sprint and active_sprint is not true %}
+<div class="pp-card mb-3">
+    <div class="pp-card-body d-flex align-items-center gap-3 flex-wrap" style="padding:10px 16px; font-size:0.8125rem;">
+        <strong><i class="bi bi-lightning" style="color:var(--pp-primary);"></i> {{ active_sprint.name }}</strong>
+        {% if active_sprint.goal %}<span class="pp-goal-text">{{ active_sprint.goal }}</span>{% endif %}
+        <span style="margin-left:auto;" class="d-flex gap-3">
+            <span class="pp-sp-badge" style="cursor:default;" title="Committed">{{ active_sprint.committed_sp }} SP committed</span>
+            <span class="pp-sp-badge" style="cursor:default; background:var(--pp-success-subtle, #dcfce7); color:var(--pp-success, #16a34a);" title="Completed">{{ active_sprint.completed_sp }} done</span>
+        </span>
+    </div>
+</div>
+{% endif %}
 <div class="kanban-board" role="region" aria-label="Kanban board">
     {% for col_key, col in columns.items() %}
+    {% set col_sp = col.work_items|selectattr('story_points')|map(attribute='story_points')|sum %}
     <div class="kanban-column" data-status-id="{{ col.status.id if col.status else col_key }}" role="list" aria-label="{{ col.status.name if col.status else col.label }} column">
         <div class="kanban-column-header">
             <span class="pp-status-dot" style="background:{{ col.status.color if col.status else '#6b7280' }}"></span>
             {{ col.status.name if col.status else col.label }}
             <span class="pp-badge pp-badge-muted" style="margin-left:auto;">{{ col.work_items|length }}</span>
+            {% if col_sp %}<span class="pp-sp-badge" style="cursor:default; font-size:0.625rem;">{{ col_sp }} SP</span>{% endif %}
             {% if project %}
             <button class="pp-btn pp-btn-ghost pp-btn-sm" style="padding:2px 6px; font-size:0.75rem;" onclick="ppModal.createItem('{{ project.key }}', {status_id: {{ col.status.id if col.status else 0 }}})" title="Add item to this column">
                 <i class="bi bi-plus"></i>
@@ -56,6 +84,7 @@
                 <div class="card-meta">
                     <i class="{{ item.item_type.icon }}" style="color:{{ item.item_type.color }}" title="{{ item.item_type.name }}"></i>
                     <i class="{{ item.priority_icon }}" style="color:{{ item.priority_color }}" title="{{ item.priority }}"></i>
+                    {% if item.epic %}<span class="pp-status-dot" style="background:{{ item.epic.color }}; width:8px; height:8px;" title="{{ item.epic.name }}"></span>{% endif %}
                     <span class="pp-sp-badge" data-sp-edit data-item-id="{{ item.id }}" data-sp="{{ item.story_points if item.story_points is not none else '' }}" title="Story points">{{ item.story_points if item.story_points is not none else '—' }}</span>
                     {% if item.assignee %}
                     <span class="pp-badge pp-badge-muted" style="margin-left:auto;">{{ item.assignee.display_name[:8] }}</span>
