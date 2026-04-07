@@ -96,7 +96,10 @@ var ppModal = {
                 '<label class="pp-form-label">Type</label>' +
                 '<select class="pp-input pp-select" id="modalItemType">' +
                 data.types.map(function (t) {
-                    return '<option value="' + ppModal._escAttr(t.id) + '"' + (t.is_default ? ' selected' : '') + '>' + ppModal._escHtml(t.name) + '</option>';
+                    var isSelected = defaults.parent_id
+                        ? (t.name === 'Task')
+                        : t.is_default;
+                    return '<option value="' + ppModal._escAttr(t.id) + '"' + (isSelected ? ' selected' : '') + '>' + ppModal._escHtml(t.name) + '</option>';
                 }).join('') +
                 '</select></div></div>' +
                 '<div class="col-md-4"><div class="pp-form-group">' +
@@ -177,6 +180,38 @@ var ppModal = {
                     return api.post('/api/projects/' + projectKey + '/items', payload);
                 },
                 onSuccess: function () { location.reload(); }
+            });
+        });
+    },
+
+    pickProjectThenCreate: function (projects) {
+        var html = '<div class="pp-form-group">' +
+            '<label class="pp-form-label">Select a project</label>' +
+            '<div class="list-group">';
+        projects.forEach(function (p) {
+            html += '<button type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-2 pp-project-pick-btn" data-key="' + ppModal._escAttr(p.key) + '">' +
+                '<span class="pp-badge-key">' + ppModal._escHtml(p.key) + '</span> ' +
+                ppModal._escHtml(p.name) + '</button>';
+        });
+        html += '</div></div>';
+
+        ppModal.show({
+            title: 'New Work Item',
+            body: html,
+            submitLabel: 'Cancel',
+            onSubmit: function () {
+                ppModal.close();
+                return Promise.resolve();
+            }
+        });
+
+        // Clicking a project immediately opens the create modal for that project
+        document.querySelectorAll('.pp-project-pick-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                ppModal.close();
+                setTimeout(function () {
+                    ppModal.createItem(btn.getAttribute('data-key'));
+                }, 300);
             });
         });
     },

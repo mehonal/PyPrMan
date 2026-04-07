@@ -2,6 +2,7 @@
 {% block title %}Members - {{ project.key }} - PyPrMan{% endblock %}
 {% block breadcrumb %}
 <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
     <li class="breadcrumb-item"><a href="{{ url_for('projects.detail', key=project.key) }}">{{ project.key }}</a></li>
     <li class="breadcrumb-item active">Settings</li>
 </ol>
@@ -12,6 +13,7 @@
     <div class="pp-settings-tabs mb-4">
         <a href="{{ url_for('settings.manage_statuses', key=project.key) }}" class="pp-settings-tab">Statuses</a>
         <a href="{{ url_for('settings.manage_types', key=project.key) }}" class="pp-settings-tab">Types</a>
+        <a href="{{ url_for('settings.manage_labels', key=project.key) }}" class="pp-settings-tab">Labels</a>
         <a href="{{ url_for('settings.manage_members', key=project.key) }}" class="pp-settings-tab active">Members</a>
     </div>
 

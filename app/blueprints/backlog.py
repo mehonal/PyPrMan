@@ -3,6 +3,7 @@ from flask_security import auth_required, current_user
 
 from app.extensions import db
 from app.models.epic import Epic
+from app.models.label import Label
 from app.models.project import Project, ProjectMembership
 from app.models.sprint import Sprint, SprintProject
 from app.models.work_item import WorkItem
@@ -27,12 +28,17 @@ def project_backlog(key):
     if not membership:
         abort(403)
 
-    sprints = (
+    show_completed = request.args.get("show_completed", "0") == "1"
+
+    sprints_query = (
         Sprint.query.join(SprintProject)
         .filter(SprintProject.project_id == project.id)
-        .order_by(Sprint.is_active.desc(), Sprint.start_date.asc().nullslast())
-        .all()
     )
+    if not show_completed:
+        sprints_query = sprints_query.filter(Sprint.completed_at.is_(None))
+    sprints = sprints_query.order_by(
+        Sprint.is_active.desc(), Sprint.start_date.asc().nullslast()
+    ).all()
 
     query = WorkItem.query.filter_by(project_id=project.id, parent_id=None)
 
@@ -40,18 +46,35 @@ def project_backlog(key):
     if filter_epic_id:
         query = query.filter_by(epic_id=filter_epic_id)
 
-    items = query.order_by(WorkItem.position).all()
+    filter_label_id = request.args.get("label_id", type=int)
+    if filter_label_id:
+        query = query.filter(WorkItem.labels.any(Label.id == filter_label_id))
 
+    items = (
+        query.options(
+            db.joinedload(WorkItem.status),
+            db.joinedload(WorkItem.item_type),
+            db.joinedload(WorkItem.epic),
+            db.joinedload(WorkItem.assignee),
+            db.joinedload(WorkItem.project),
+        )
+        .order_by(WorkItem.position)
+        .all()
+    )
+
+    sprint_ids = {s.id for s in sprints}
     sprint_items = {}
     no_sprint_items = []
     for item in items:
-        if item.sprint_id:
+        if item.sprint_id and item.sprint_id in sprint_ids:
             sprint_items.setdefault(item.sprint_id, []).append(item)
-        else:
+        elif not item.sprint_id:
             no_sprint_items.append(item)
 
     epics = Epic.query.filter_by(project_id=project.id).order_by(Epic.name).all()
+    labels = Label.query.filter_by(project_id=project.id).order_by(Label.name).all()
 
+    from datetime import date
     return render_template(
         "backlog/list.html",
         project=project,
@@ -61,6 +84,10 @@ def project_backlog(key):
         is_aggregated=False,
         epics=epics,
         filter_epic_id=filter_epic_id,
+        labels=labels,
+        filter_label_id=filter_label_id,
+        show_completed=show_completed,
+        today=date.today(),
     )
 
 
@@ -76,13 +103,18 @@ def aggregated_backlog():
     else:
         filtered_ids = project_ids
 
-    sprints = (
+    show_completed = request.args.get("show_completed", "0") == "1"
+
+    sprints_query = (
         Sprint.query.join(SprintProject)
         .filter(SprintProject.project_id.in_(filtered_ids))
         .distinct()
-        .order_by(Sprint.is_active.desc(), Sprint.start_date.asc().nullslast())
-        .all()
     )
+    if not show_completed:
+        sprints_query = sprints_query.filter(Sprint.completed_at.is_(None))
+    sprints = sprints_query.order_by(
+        Sprint.is_active.desc(), Sprint.start_date.asc().nullslast()
+    ).all()
 
     query = WorkItem.query.filter(
         WorkItem.project_id.in_(filtered_ids), WorkItem.parent_id.is_(None)
@@ -92,14 +124,29 @@ def aggregated_backlog():
     if filter_epic_id:
         query = query.filter_by(epic_id=filter_epic_id)
 
-    items = query.order_by(WorkItem.position).all()
+    filter_label_id = request.args.get("label_id", type=int)
+    if filter_label_id:
+        query = query.filter(WorkItem.labels.any(Label.id == filter_label_id))
 
+    items = (
+        query.options(
+            db.joinedload(WorkItem.status),
+            db.joinedload(WorkItem.item_type),
+            db.joinedload(WorkItem.epic),
+            db.joinedload(WorkItem.assignee),
+            db.joinedload(WorkItem.project),
+        )
+        .order_by(WorkItem.position)
+        .all()
+    )
+
+    sprint_ids = {s.id for s in sprints}
     sprint_items = {}
     no_sprint_items = []
     for item in items:
-        if item.sprint_id:
+        if item.sprint_id and item.sprint_id in sprint_ids:
             sprint_items.setdefault(item.sprint_id, []).append(item)
-        else:
+        elif not item.sprint_id:
             no_sprint_items.append(item)
 
     epics = (
@@ -107,7 +154,13 @@ def aggregated_backlog():
         .order_by(Epic.name)
         .all()
     )
+    labels = (
+        Label.query.filter(Label.project_id.in_(filtered_ids))
+        .order_by(Label.name)
+        .all()
+    )
 
+    from datetime import date
     return render_template(
         "backlog/list.html",
         project=None,
@@ -119,6 +172,10 @@ def aggregated_backlog():
         filter_project_id=filter_project_id,
         epics=epics,
         filter_epic_id=filter_epic_id,
+        labels=labels,
+        filter_label_id=filter_label_id,
+        show_completed=show_completed,
+        today=date.today(),
     )
 
 

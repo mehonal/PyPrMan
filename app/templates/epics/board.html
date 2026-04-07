@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Epic Board - {{ project.key }} - PyPrMan{% endblock %}
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('projects.detail', key=project.key) }}">{{ project.key }}</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('epics.list_epics', key=project.key) }}">Epics</a></li>
+    <li class="breadcrumb-item active">Board</li>
+</ol>
+{% endblock %}
+{% block actions %}
+<a href="{{ url_for('epics.list_epics', key=project.key) }}" class="pp-btn pp-btn-secondary pp-btn-sm">
+    <i class="bi bi-list-ul"></i><span class="d-none d-sm-inline"> List View</span>
+</a>
+<button class="pp-btn pp-btn-primary pp-btn-sm" onclick="ppModal.createEpic('{{ project.key }}')">
+    <i class="bi bi-plus-lg"></i> New Epic
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="kanban-board" role="region" aria-label="Epic board">
+    {% for col_key, col in columns.items() %}
+    <div class="kanban-column" data-epic-status="{{ col_key }}" role="list">
+        <div class="kanban-column-header">
+            <span class="pp-status-dot" style="background:{% if col_key == 'done' %}#10b981{% elif col_key == 'in_progress' %}#4f46e5{% else %}#6b7280{% endif %}"></span>
+            {{ col.label }}
+            <span class="pp-badge pp-badge-muted" style="margin-left:auto;">{{ col.epics|length }}</span>
+        </div>
+        <div class="kanban-column-body" data-epic-status="{{ col_key }}">
+            {% for epic in col.epics %}
+            {% set stats = epic_stats.get(epic.id, {}) %}
+            <div class="kanban-card epic-card" draggable="true" data-epic-id="{{ epic.id }}" role="listitem" tabindex="0">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="pp-status-dot" style="background:{{ epic.color }}; width:10px; height:10px;"></span>
+                    <a href="{{ url_for('epics.detail_epic', key=project.key, epic_id=epic.id) }}" style="font-size:0.875rem; font-weight:600; color:inherit; text-decoration:none;">{{ epic.name }}</a>
+                </div>
+                {% if epic.description %}
+                <p style="font-size:0.75rem; color:var(--pp-text-muted); margin:0 0 6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ epic.description[:60] }}{% if epic.description|length > 60 %}...{% endif %}</p>
+                {% endif %}
+                <div class="d-flex align-items-center gap-2">
+                    <span class="pp-badge pp-badge-muted" style="font-size:0.625rem;">{{ epic.work_items|length }} items</span>
+                    {% if stats.get('total') %}
+                    <div class="pp-progress-bar" style="flex:1; height:4px;">
+                        <div class="pp-progress-fill" style="width:{{ stats.pct }}%; background:{{ epic.color }};"></div>
+                    </div>
+                    <span style="font-size:0.625rem; color:var(--pp-text-muted);">{{ stats.pct }}%</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/epic-board.js') }}"></script>
+{% endblock %}

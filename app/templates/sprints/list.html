@@ -2,6 +2,7 @@
 {% block title %}Sprints - PyPrMan{% endblock %}
 {% block breadcrumb %}
 <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
     <li class="breadcrumb-item active">Sprints</li>
 </ol>
 {% endblock %}
@@ -22,11 +23,19 @@
     </div>
 </div>
 {% endif %}
+
+<div class="pp-card mb-4" id="velocityChartCard" style="display:none;">
+    <div class="pp-card-header">Velocity</div>
+    <div class="pp-card-body" style="position:relative; max-height:250px;">
+        <canvas id="velocityChart"></canvas>
+    </div>
+</div>
+
 {% for sprint in sprints %}
 <div class="pp-card mb-3">
     <div class="pp-card-body">
         <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
-            <h5 style="margin:0; font-size:0.9375rem;">{{ sprint.name }}</h5>
+            <h5 style="margin:0; font-size:0.9375rem;"><a href="{{ url_for('sprints.sprint_detail', sprint_id=sprint.id) }}" style="color:inherit; text-decoration:none;">{{ sprint.name }}</a></h5>
             {% if sprint.is_active %}
             <span class="pp-badge pp-badge-primary" style="font-size:0.6875rem;">Active</span>
             {% endif %}
@@ -77,4 +86,48 @@
     <a href="{{ url_for('sprints.create_sprint') }}" class="pp-btn pp-btn-primary pp-btn-sm">Create one</a>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
+<script>
+(function() {
+    api.get('/api/velocity').then(function(data) {
+        if (!data.sprints || data.sprints.length === 0) return;
+        var card = document.getElementById('velocityChartCard');
+        if (card) card.style.display = '';
+        var canvas = document.getElementById('velocityChart');
+        new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: data.sprints.map(function(s) { return s.name; }),
+                datasets: [
+                    {
+                        label: 'Committed',
+                        data: data.sprints.map(function(s) { return s.committed; }),
+                        backgroundColor: '#c7d2fe',
+                        borderColor: '#4f46e5',
+                        borderWidth: 1,
+                    },
+                    {
+                        label: 'Completed',
+                        data: data.sprints.map(function(s) { return s.completed; }),
+                        backgroundColor: '#4f46e5',
+                        borderColor: '#3730a3',
+                        borderWidth: 1,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } },
+                scales: {
+                    y: { beginAtZero: true, title: { display: true, text: 'Story Points' } },
+                },
+            },
+        });
+    });
+})();
+</script>
 {% endblock %}

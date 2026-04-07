@@ -4,8 +4,11 @@ from flask import Blueprint, abort, flash, redirect, render_template, request, u
 from flask_security import auth_required, current_user
 
 from app.extensions import db
+from app.models.activity import ActivityLog
 from app.models.project import Project, ProjectMembership
 from app.models.sprint import Sprint, SprintProject
+from app.models.status import Status
+from app.models.work_item import WorkItem
 
 sprints_bp = Blueprint("sprints", __name__, url_prefix="/sprints")
 
@@ -25,6 +28,10 @@ def list_sprints():
         Sprint.query.join(SprintProject)
         .filter(SprintProject.project_id.in_(project_ids))
         .distinct()
+        .options(
+            db.selectinload(Sprint.sprint_projects).joinedload(SprintProject.project),
+            db.selectinload(Sprint.work_items).joinedload(WorkItem.status),
+        )
         .order_by(Sprint.start_date.desc().nullslast(), Sprint.id.desc())
         .all()
     )
@@ -42,6 +49,51 @@ def list_sprints():
         sprints=sprints,
         avg_velocity=avg_velocity,
         velocity_sprint_count=len(completed_sprints),
+    )
+
+
+@sprints_bp.route("/<int:sprint_id>/detail")
+@auth_required()
+def sprint_detail(sprint_id):
+    sprint = Sprint.query.options(
+        db.selectinload(Sprint.sprint_projects),
+        db.selectinload(Sprint.work_items)
+        .joinedload(WorkItem.status),
+        db.selectinload(Sprint.work_items)
+        .joinedload(WorkItem.item_type),
+        db.selectinload(Sprint.work_items)
+        .joinedload(WorkItem.project),
+    ).get_or_404(sprint_id)
+    sprint_project_ids = [sp.project_id for sp in sprint.sprint_projects]
+    membership = ProjectMembership.query.filter(
+        ProjectMembership.user_id == current_user.id,
+        ProjectMembership.project_id.in_(sprint_project_ids),
+    ).first()
+    if not membership:
+        abort(403)
+
+    items = sprint.work_items
+    completed_items = [i for i in items if i.status.category == "done"]
+    carryover_items = [i for i in items if i.status.category != "done"] if sprint.completed_at else []
+
+    committed_sp = sum(i.story_points or 0 for i in items)
+    completed_sp = sum(i.story_points or 0 for i in completed_items)
+
+    # Scope changes: items added/removed from this sprint
+    scope_changes = ActivityLog.query.filter(
+        ActivityLog.work_item_id.in_([i.id for i in items]),
+        ActivityLog.field_changed == "sprint",
+    ).order_by(ActivityLog.created_at).all() if items else []
+
+    return render_template(
+        "sprints/detail.html",
+        sprint=sprint,
+        items=items,
+        completed_items=completed_items,
+        carryover_items=carryover_items,
+        committed_sp=committed_sp,
+        completed_sp=completed_sp,
+        scope_changes=scope_changes,
     )
 
 

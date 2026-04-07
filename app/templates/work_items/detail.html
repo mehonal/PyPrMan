@@ -2,7 +2,9 @@
 {% block title %}{{ item.item_key }} - {{ item.title }} - PyPrMan{% endblock %}
 {% block breadcrumb %}
 <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
     <li class="breadcrumb-item"><a href="{{ url_for('projects.detail', key=project.key) }}">{{ project.key }}</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('board.project_board', key=project.key) }}">Board</a></li>
     <li class="breadcrumb-item active">{{ item.item_key }}</li>
 </ol>
 {% endblock %}
@@ -141,7 +143,7 @@
                         data-current-value="{{ item.priority }}"
                         data-options='[{"value":"none","label":"None"},{"value":"low","label":"Low"},{"value":"medium","label":"Medium"},{"value":"high","label":"High"},{"value":"critical","label":"Critical"}]'>
                         <span class="pp-inline-value">
-                            <i class="{{ item.priority_icon }}" style="color:{{ item.priority_color }}" aria-hidden="true"></i>
+                            <span class="pp-priority-badge pp-priority-{{ item.priority }}"><i class="{{ item.priority_icon }}"></i></span>
                             <span class="pp-inline-text">{{ item.priority|capitalize }}</span>
                         </span>
                     </dd>
@@ -187,6 +189,40 @@
                     <dt style="color:var(--pp-text-muted); font-size:0.75rem; font-weight:500; margin-bottom:2px;">Sprint</dt>
                     <dd style="margin-bottom:12px;">{{ item.sprint.name }}{% if item.sprint.is_active %} <span class="pp-badge pp-badge-primary" style="font-size:0.6875rem;">Active</span>{% endif %}</dd>
                     {% endif %}
+
+                    <dt style="color:var(--pp-text-muted); font-size:0.75rem; font-weight:500; margin-bottom:2px;">Due Date</dt>
+                    <dd style="margin-bottom:12px;"
+                        data-inline-edit="date" data-field="due_date" data-item-id="{{ item.id }}"
+                        data-current-value="{{ item.due_date.isoformat() if item.due_date else '' }}">
+                        <span class="pp-inline-text-display{% if item.due_date and item.due_date.isoformat() < today.isoformat() %} pp-overdue{% endif %}">{{ item.due_date.strftime('%b %d, %Y') if item.due_date else '—' }}</span>
+                    </dd>
+
+                    <dt style="color:var(--pp-text-muted); font-size:0.75rem; font-weight:500; margin-bottom:2px;">Labels</dt>
+                    <dd style="margin-bottom:12px;">
+                        <div id="item-labels" class="d-flex flex-wrap gap-1 mb-1">
+                            {% for label in item.labels %}
+                            <span class="pp-label-badge" style="background:{{ label.color }}; color:#fff;" data-label-id="{{ label.id }}">
+                                {{ label.name }}
+                                <button class="pp-label-remove" onclick="ppLabels.remove({{ item.id }}, {{ label.id }}, this)" title="Remove">&times;</button>
+                            </span>
+                            {% endfor %}
+                        </div>
+                        <div class="pp-label-picker" style="position:relative;">
+                            <button class="pp-btn pp-btn-ghost pp-btn-sm" id="add-label-btn" onclick="ppLabels.toggle()" style="font-size:0.75rem;">
+                                <i class="bi bi-plus"></i> Add Label
+                            </button>
+                            <div id="label-dropdown" class="pp-label-dropdown" style="display:none;">
+                                {% for label in project.labels %}
+                                <button class="pp-label-option" onclick="ppLabels.add({{ item.id }}, {{ label.id }}, '{{ label.name }}', '{{ label.color }}', this)" data-label-id="{{ label.id }}">
+                                    <span class="pp-label-dot" style="background:{{ label.color }};"></span> {{ label.name }}
+                                </button>
+                                {% endfor %}
+                                {% if not project.labels %}
+                                <span style="font-size:0.75rem; color:var(--pp-text-muted); padding:8px;">No labels. Create them in project settings.</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </dd>
 
                     <dt style="color:var(--pp-text-muted); font-size:0.75rem; font-weight:500; margin-bottom:2px;">Created</dt>
                     <dd style="margin-bottom:0;">{{ item.created_at.strftime('%b %d, %Y') }}</dd>

@@ -34,7 +34,10 @@ def _get_members(project):
     from app.models.user import User
 
     memberships = ProjectMembership.query.filter_by(project_id=project.id).all()
-    return [User.query.get(m.user_id) for m in memberships]
+    if not memberships:
+        return []
+    user_ids = [m.user_id for m in memberships]
+    return User.query.filter(User.id.in_(user_ids)).all()
 
 
 def _log_change(work_item, field, old_val, new_val):
@@ -135,12 +138,14 @@ def create_item(key):
 def detail(key, item_key):
     project = _get_project(key)
     item = WorkItem.query.filter_by(item_key=item_key.upper(), project_id=project.id).first_or_404()
-    members = [m.user for m in ProjectMembership.query.filter_by(project_id=project.id).all()]
+    members = [m.user for m in ProjectMembership.query.filter_by(project_id=project.id).options(db.joinedload(ProjectMembership.user)).all()]
+    from datetime import date
     return render_template(
         "work_items/detail.html",
         project=project,
         item=item,
         members=members,
+        today=date.today(),
     )
 
 

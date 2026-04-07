@@ -2,6 +2,7 @@
 {% block title %}{% if epic %}Edit Epic{% else %}New Epic{% endif %} - PyPrMan{% endblock %}
 {% block breadcrumb %}
 <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
     <li class="breadcrumb-item"><a href="{{ url_for('projects.detail', key=project.key) }}">{{ project.key }}</a></li>
     <li class="breadcrumb-item"><a href="{{ url_for('epics.list_epics', key=project.key) }}">Epics</a></li>
     <li class="breadcrumb-item active">{% if epic %}Edit{% else %}New{% endif %}</li>
@@ -25,6 +26,16 @@
             <label class="pp-form-label" for="color">Color</label>
             <input type="color" class="pp-input" id="color" name="color" value="{{ epic.color if epic else '#8b5cf6' }}" style="width:60px; height:36px; padding:4px;">
         </div>
+        {% if epic %}
+        <div class="pp-form-group">
+            <label class="pp-form-label" for="status">Status</label>
+            <select class="pp-select" id="status" name="status">
+                <option value="to_do" {% if epic.status == 'to_do' %}selected{% endif %}>To Do</option>
+                <option value="in_progress" {% if epic.status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                <option value="done" {% if epic.status == 'done' %}selected{% endif %}>Done</option>
+            </select>
+        </div>
+        {% endif %}
         <div class="d-flex gap-2">
             <button type="submit" class="pp-btn pp-btn-primary">{% if epic %}Update{% else %}Create{% endif %}</button>
             <a href="{{ url_for('epics.list_epics', key=project.key) }}" class="pp-btn pp-btn-secondary">Cancel</a>

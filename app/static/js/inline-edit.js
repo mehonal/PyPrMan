@@ -37,7 +37,12 @@ var ppInline = (function () {
             var mode = el.dataset.inlineEdit || 'select';
             el.style.cursor = 'pointer';
 
-            if (mode === 'text') {
+            if (mode === 'date') {
+                el.addEventListener('click', function (e) {
+                    if (e.target.tagName === 'INPUT') return;
+                    openDateEditor(el);
+                });
+            } else if (mode === 'text') {
                 el.addEventListener('click', function (e) {
                     if (e.target.tagName === 'INPUT') return;
                     openTextEditor(el);
@@ -110,6 +115,80 @@ var ppInline = (function () {
             if (e.key === 'Escape') {
                 input.value = currentValue;
                 input.blur();
+            }
+        });
+    }
+
+    /* ---- Date input (due_date) ---- */
+    function openDateEditor(el) {
+        if (el.querySelector('input')) return;
+        var field = el.dataset.field;
+        var itemId = el.dataset.itemId;
+        var currentValue = el.dataset.currentValue || '';
+        var displayEl = el.querySelector('.pp-inline-text-display');
+
+        var wrap = document.createElement('div');
+        wrap.style.cssText = 'display:flex; gap:4px; align-items:center;';
+
+        var input = document.createElement('input');
+        input.type = 'date';
+        input.className = 'pp-input';
+        input.value = currentValue;
+        input.style.cssText = 'font-size:0.8125rem; padding:2px 6px; min-height:32px;';
+
+        var clearBtn = document.createElement('button');
+        clearBtn.className = 'pp-btn pp-btn-ghost pp-btn-sm';
+        clearBtn.textContent = 'Clear';
+        clearBtn.style.cssText = 'font-size:0.6875rem; padding:2px 6px;';
+        clearBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            input.value = '';
+            save();
+        });
+
+        wrap.appendChild(input);
+        wrap.appendChild(clearBtn);
+
+        if (displayEl) displayEl.style.display = 'none';
+        el.appendChild(wrap);
+        input.focus();
+
+        function save() {
+            var newValue = input.value;
+            if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+            if (displayEl) displayEl.style.display = '';
+
+            if (newValue === currentValue) return;
+
+            var data = {};
+            data[field] = newValue || null;
+            api.patch('/api/items/' + itemId, data).then(function (res) {
+                if (res.ok) {
+                    el.dataset.currentValue = newValue;
+                    if (displayEl) {
+                        if (newValue) {
+                            var d = new Date(newValue + 'T00:00:00');
+                            var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                            displayEl.textContent = months[d.getMonth()] + ' ' + String(d.getDate()).padStart(2, '0') + ', ' + d.getFullYear();
+                            var today = new Date(); today.setHours(0,0,0,0);
+                            displayEl.classList.toggle('pp-overdue', d < today);
+                        } else {
+                            displayEl.textContent = '\u2014';
+                            displayEl.classList.remove('pp-overdue');
+                        }
+                    }
+                }
+            }).catch(function (err) {
+                console.error('Inline date edit failed:', err);
+            });
+        }
+
+        input.addEventListener('change', save);
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                input.value = currentValue;
+                if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+                if (displayEl) displayEl.style.display = '';
             }
         });
     }
@@ -399,6 +478,72 @@ var ppComments = (function () {
     return { init: init };
 })();
 
+/**
+ * Label picker for work item detail page.
+ */
+var ppLabels = (function () {
+    'use strict';
+
+    function toggle() {
+        var dd = document.getElementById('label-dropdown');
+        if (dd) dd.style.display = dd.style.display === 'none' ? '' : 'none';
+    }
+
+    function add(itemId, labelId, name, color, btn) {
+        api.post('/api/items/' + itemId + '/labels', { label_id: labelId }).then(function (res) {
+            if (res.ok) {
+                var container = document.getElementById('item-labels');
+                var span = document.createElement('span');
+                span.className = 'pp-label-badge';
+                span.style.cssText = 'background:' + color + '; color:#fff;';
+                span.dataset.labelId = labelId;
+                span.innerHTML = escapeHtml(name) +
+                    ' <button class="pp-label-remove" onclick="ppLabels.remove(' + itemId + ', ' + labelId + ', this)" title="Remove">&times;</button>';
+                container.appendChild(span);
+                // Hide the option
+                if (btn) btn.style.display = 'none';
+                toggle();
+            }
+        }).catch(function (err) {
+            console.error('Add label failed:', err);
+        });
+    }
+
+    function remove(itemId, labelId, btn) {
+        api.del('/api/items/' + itemId + '/labels/' + labelId).then(function (res) {
+            if (res.ok) {
+                var badge = btn.closest('.pp-label-badge');
+                if (badge) badge.remove();
+                // Re-show the option in dropdown
+                var dd = document.getElementById('label-dropdown');
+                if (dd) {
+                    var opt = dd.querySelector('[data-label-id="' + labelId + '"]');
+                    if (opt) opt.style.display = '';
+                }
+            }
+        }).catch(function (err) {
+            console.error('Remove label failed:', err);
+        });
+    }
+
+    function escapeHtml(str) {
+        var div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    return { toggle: toggle, add: add, remove: remove };
+})();
+
 document.addEventListener('DOMContentLoaded', function () {
     ppInline.init();
+
+    // Close label dropdown when clicking outside
+    document.addEventListener('click', function (e) {
+        var dd = document.getElementById('label-dropdown');
+        if (dd && dd.style.display !== 'none') {
+            var picker = e.target.closest('.pp-label-picker');
+            if (!picker) dd.style.display = 'none';
+        }
+    });
 });

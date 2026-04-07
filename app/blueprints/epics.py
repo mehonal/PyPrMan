@@ -4,6 +4,7 @@ from flask_security import auth_required, current_user
 from app.extensions import db
 from app.models.epic import Epic
 from app.models.project import Project, ProjectMembership
+from app.models.work_item import WorkItem
 from app.validation import validate_hex_color
 
 epics_bp = Blueprint("epics", __name__, url_prefix="/projects/<key>/epics")
@@ -30,13 +31,22 @@ def _epic_sp_stats(epic):
     return {"total": total, "done": done, "pct": pct}
 
 
+EPIC_STATUSES = ["to_do", "in_progress", "done"]
+
+
 @epics_bp.route("/")
 @auth_required()
 def list_epics(key):
     project = _get_project(key)
-    epic_stats = {epic.id: _epic_sp_stats(epic) for epic in project.epics}
+    epics = (
+        Epic.query.filter_by(project_id=project.id)
+        .options(db.selectinload(Epic.work_items).joinedload(WorkItem.status))
+        .order_by(Epic.position)
+        .all()
+    )
+    epic_stats = {epic.id: _epic_sp_stats(epic) for epic in epics}
     return render_template(
-        "epics/list.html", project=project, epics=project.epics, epic_stats=epic_stats
+        "epics/list.html", project=project, epics=epics, epic_stats=epic_stats
     )
 
 
@@ -44,7 +54,14 @@ def list_epics(key):
 @auth_required()
 def detail_epic(key, epic_id):
     project = _get_project(key)
-    epic = Epic.query.get_or_404(epic_id)
+    epic = (
+        Epic.query.options(
+            db.selectinload(Epic.work_items).joinedload(WorkItem.status),
+            db.selectinload(Epic.work_items).joinedload(WorkItem.item_type),
+            db.selectinload(Epic.work_items).joinedload(WorkItem.assignee),
+        )
+        .get_or_404(epic_id)
+    )
     if epic.project_id != project.id:
         abort(404)
     stats = _epic_sp_stats(epic)
@@ -85,6 +102,9 @@ def edit_epic(key, epic_id):
         epic.name = request.form.get("name", "").strip() or epic.name
         epic.description = request.form.get("description", "").strip()
         epic.color = validate_hex_color(request.form.get("color", epic.color).strip(), epic.color)
+        new_status = request.form.get("status", epic.status)
+        if new_status in EPIC_STATUSES:
+            epic.status = new_status
         db.session.commit()
         flash("Epic updated.", "success")
         return redirect(url_for("epics.list_epics", key=key))
@@ -104,3 +124,44 @@ def delete_epic(key, epic_id):
     db.session.commit()
     flash("Epic deleted.", "success")
     return redirect(url_for("epics.list_epics", key=key))
+
+
+@epics_bp.route("/reorder", methods=["POST"])
+@auth_required()
+def reorder_epic(key):
+    project = _get_project(key)
+    action = request.form.get("action")
+    epic_id = request.form.get("epic_id", type=int)
+
+    epics = Epic.query.filter_by(project_id=project.id).order_by(Epic.position).all()
+    idx = next((i for i, e in enumerate(epics) if e.id == epic_id), None)
+    if idx is not None:
+        swap_idx = idx - 1 if action == "move_up" else idx + 1
+        if 0 <= swap_idx < len(epics):
+            epics[idx].position, epics[swap_idx].position = epics[swap_idx].position, epics[idx].position
+            db.session.commit()
+
+    return redirect(url_for("epics.list_epics", key=key))
+
+
+@epics_bp.route("/board")
+@auth_required()
+def epic_board(key):
+    project = _get_project(key)
+    epics = (
+        Epic.query.filter_by(project_id=project.id)
+        .options(db.selectinload(Epic.work_items).joinedload(WorkItem.status))
+        .order_by(Epic.position)
+        .all()
+    )
+    columns = {
+        "to_do": {"label": "To Do", "epics": []},
+        "in_progress": {"label": "In Progress", "epics": []},
+        "done": {"label": "Done", "epics": []},
+    }
+    for epic in epics:
+        columns.get(epic.status, columns["to_do"])["epics"].append(epic)
+    epic_stats = {e.id: _epic_sp_stats(e) for e in epics}
+    return render_template(
+        "epics/board.html", project=project, columns=columns, epic_stats=epic_stats
+    )

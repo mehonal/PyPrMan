@@ -6,6 +6,7 @@ from app.models.epic import Epic
 from app.models.sprint import Sprint, SprintProject
 from app.models.work_item import WorkItem
 from app.models.activity import Comment, ActivityLog
+from app.models.label import Label, work_item_labels
 
 __all__ = [
     "User",
@@ -20,4 +21,6 @@ __all__ = [
     "WorkItem",
     "Comment",
     "ActivityLog",
+    "Label",
+    "work_item_labels",
 ]

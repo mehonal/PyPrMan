@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Story Map - {{ project.key }} - PyPrMan{% endblock %}
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('projects.detail', key=project.key) }}">{{ project.key }}</a></li>
+    <li class="breadcrumb-item active">Story Map</li>
+</ol>
+{% endblock %}
+{% block actions %}
+<a href="{{ url_for('board.project_board', key=project.key) }}" class="pp-btn pp-btn-secondary pp-btn-sm">
+    <i class="bi bi-kanban"></i><span class="d-none d-sm-inline"> Board</span>
+</a>
+<button class="pp-btn pp-btn-primary pp-btn-sm" onclick="ppModal.createItem('{{ project.key }}')">
+    <i class="bi bi-plus-lg"></i> New Item
+</button>
+{% endblock %}
+
+{% block content %}
+{% if not epics and not grid %}
+<div class="pp-empty" style="padding:48px;">
+    <i class="bi bi-map" style="font-size:2rem; opacity:0.3;"></i>
+    <p style="margin:12px 0 0;">Create some epics and work items to see your story map.</p>
+</div>
+{% else %}
+<div class="storymap-container">
+    <table class="storymap-table">
+        <thead>
+            <tr>
+                <th class="storymap-header storymap-row-header"></th>
+                {% for epic in epics %}
+                <th class="storymap-header">
+                    <span class="pp-status-dot" style="background:{{ epic.color }}; width:10px; height:10px;"></span>
+                    {{ epic.name }}
+                </th>
+                {% endfor %}
+                <th class="storymap-header storymap-header--noepic">No Epic</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for label in labels %}
+            <tr>
+                <td class="storymap-row-header">
+                    <span class="pp-label-dot" style="background:{{ label.color }};"></span>
+                    {{ label.name }}
+                </td>
+                {% for epic in epics %}
+                <td class="storymap-cell">
+                    {% for item in grid.get((epic.id, label.id), []) %}
+                    <a href="{{ url_for('work_items.detail', key=project.key, item_key=item.item_key) }}" class="storymap-card">
+                        <span class="storymap-card-key">{{ item.item_key }}</span>
+                        <span class="storymap-card-title">{{ item.title }}</span>
+                        <span class="storymap-card-meta">
+                            <span class="pp-status-dot" style="background:{{ item.status.color }}" title="{{ item.status.name }}"></span>
+                            <span class="pp-priority-badge pp-priority-{{ item.priority }}"><i class="{{ item.priority_icon }}"></i></span>
+                        </span>
+                    </a>
+                    {% endfor %}
+                </td>
+                {% endfor %}
+                <td class="storymap-cell">
+                    {% for item in grid.get((0, label.id), []) %}
+                    <a href="{{ url_for('work_items.detail', key=project.key, item_key=item.item_key) }}" class="storymap-card">
+                        <span class="storymap-card-key">{{ item.item_key }}</span>
+                        <span class="storymap-card-title">{{ item.title }}</span>
+                        <span class="storymap-card-meta">
+                            <span class="pp-status-dot" style="background:{{ item.status.color }}" title="{{ item.status.name }}"></span>
+                            <span class="pp-priority-badge pp-priority-{{ item.priority }}"><i class="{{ item.priority_icon }}"></i></span>
+                        </span>
+                    </a>
+                    {% endfor %}
+                </td>
+            </tr>
+            {% endfor %}
+            <tr>
+                <td class="storymap-row-header storymap-row-header--unlabeled">Unlabeled</td>
+                {% for epic in epics %}
+                <td class="storymap-cell">
+                    {% for item in grid.get((epic.id, 0), []) %}
+                    <a href="{{ url_for('work_items.detail', key=project.key, item_key=item.item_key) }}" class="storymap-card">
+                        <span class="storymap-card-key">{{ item.item_key }}</span>
+                        <span class="storymap-card-title">{{ item.title }}</span>
+                        <span class="storymap-card-meta">
+                            <span class="pp-status-dot" style="background:{{ item.status.color }}" title="{{ item.status.name }}"></span>
+                            <span class="pp-priority-badge pp-priority-{{ item.priority }}"><i class="{{ item.priority_icon }}"></i></span>
+                        </span>
+                    </a>
+                    {% endfor %}
+                </td>
+                {% endfor %}
+                <td class="storymap-cell">
+                    {% for item in grid.get((0, 0), []) %}
+                    <a href="{{ url_for('work_items.detail', key=project.key, item_key=item.item_key) }}" class="storymap-card">
+                        <span class="storymap-card-key">{{ item.item_key }}</span>
+                        <span class="storymap-card-title">{{ item.title }}</span>
+                        <span class="storymap-card-meta">
+                            <span class="pp-status-dot" style="background:{{ item.status.color }}" title="{{ item.status.name }}"></span>
+                            <span class="pp-priority-badge pp-priority-{{ item.priority }}"><i class="{{ item.priority_icon }}"></i></span>
+                        </span>
+                    </a>
+                    {% endfor %}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

@@ -6,6 +6,7 @@ from flask_security import auth_required, current_user
 from app.extensions import db
 from app.models.activity import ActivityLog, Comment
 from app.models.epic import Epic
+from app.models.label import Label
 from app.models.project import Project, ProjectMembership
 from app.models.sprint import Sprint, SprintProject
 from app.models.status import Status
@@ -66,6 +67,11 @@ def search():
                 WorkItem.item_key.ilike(f"%{q}%"),
             ),
         )
+        .options(
+            db.joinedload(WorkItem.project),
+            db.joinedload(WorkItem.status),
+            db.joinedload(WorkItem.item_type),
+        )
         .order_by(WorkItem.updated_at.desc())
         .limit(10)
         .all()
@@ -92,7 +98,7 @@ def search():
 @auth_required()
 def form_options(key):
     project = _get_project(key)
-    members = ProjectMembership.query.filter_by(project_id=project.id).all()
+    members = ProjectMembership.query.filter_by(project_id=project.id).options(db.joinedload(ProjectMembership.user)).all()
 
     sprints = (
         Sprint.query.join(SprintProject)
@@ -113,6 +119,10 @@ def form_options(key):
             "epics": [
                 {"id": e.id, "name": e.name, "color": e.color}
                 for e in project.epics
+            ],
+            "labels": [
+                {"id": l.id, "name": l.name, "color": l.color}
+                for l in project.labels
             ],
             "sprints": [
                 {"id": s.id, "name": s.name, "is_active": s.is_active}
@@ -138,6 +148,12 @@ def create_item(key):
 
     default_type = next((t for t in project.item_types if t.is_default), None) or project.item_types[0]
     default_status = next((s for s in project.statuses if s.is_default), None) or project.statuses[0]
+
+    # When creating a subtask without explicit type, default to "Task"
+    if data.get("parent_id") and not data.get("item_type_id"):
+        task_type = next((t for t in project.item_types if t.name == "Task"), None)
+        if task_type:
+            default_type = task_type
 
     max_pos = (
         db.session.query(db.func.max(WorkItem.position))
@@ -278,7 +294,11 @@ def update_item(item_id):
     if "story_points" in data:
         new_sp = data["story_points"]
         if new_sp is not None:
-            new_sp = int(new_sp) if str(new_sp).strip() else None
+            raw = str(new_sp).strip()
+            try:
+                new_sp = int(raw) if raw else None
+            except (ValueError, TypeError):
+                return jsonify({"error": "Invalid story points value"}), 400
         if new_sp != item.story_points:
             old_sp = item.story_points
             changes["story_points"] = (
@@ -286,6 +306,17 @@ def update_item(item_id):
                 str(new_sp) if new_sp is not None else "unset",
             )
             item.story_points = new_sp
+
+    if "due_date" in data:
+        new_due = None
+        if data["due_date"]:
+            new_due = datetime.strptime(data["due_date"], "%Y-%m-%d").date()
+        if new_due != item.due_date:
+            changes["due_date"] = (
+                str(item.due_date) if item.due_date else "unset",
+                str(new_due) if new_due else "unset",
+            )
+            item.due_date = new_due
 
     if "description" in data:
         new_desc = data["description"].strip()
@@ -321,6 +352,7 @@ def update_item(item_id):
             "assignee": {"id": item.assignee_id, "name": item.assignee.display_name if item.assignee else None},
             "item_type": {"id": item.item_type_id, "name": item.item_type.name, "icon": item.item_type.icon, "color": item.item_type.color},
             "story_points": item.story_points,
+            "due_date": item.due_date.isoformat() if item.due_date else None,
         },
     })
 
@@ -363,3 +395,316 @@ def delete_comment(item_id, comment_id):
     db.session.delete(comment)
     db.session.commit()
     return jsonify({"ok": True})
+
+
+@api_bp.route("/sprints/<int:sprint_id>/burndown")
+@auth_required()
+def sprint_burndown(sprint_id):
+    from datetime import date, timedelta
+    sprint = Sprint.query.get_or_404(sprint_id)
+    # Verify access
+    sprint_project_ids = [sp.project_id for sp in sprint.sprint_projects]
+    membership = ProjectMembership.query.filter(
+        ProjectMembership.user_id == current_user.id,
+        ProjectMembership.project_id.in_(sprint_project_ids),
+    ).first()
+    if not membership:
+        abort(403)
+
+    items = sprint.work_items
+    if not items or not sprint.start_date:
+        return jsonify({"dates": [], "ideal": [], "actual": []})
+
+    end = sprint.end_date or date.today()
+    if end < sprint.start_date:
+        end = sprint.start_date
+
+    total_sp = sum(i.story_points or 0 for i in items)
+    item_ids = [i.id for i in items]
+
+    # Get all status changes for these items
+    status_logs = (
+        ActivityLog.query.filter(
+            ActivityLog.work_item_id.in_(item_ids),
+            ActivityLog.field_changed == "status",
+        ).order_by(ActivityLog.created_at).all()
+    )
+
+    # Build a map of item_id -> story_points
+    sp_map = {i.id: (i.story_points or 0) for i in items}
+
+    # Track which items were done on each day
+    # Start: assume all items are "not done"
+    done_items = set()
+    log_idx = 0
+
+    # Get all done status names from project statuses
+    done_status_names = set()
+    for pid in sprint_project_ids:
+        from app.models.status import Status as StatusModel
+        for s in StatusModel.query.filter_by(project_id=pid, category="done").all():
+            done_status_names.add(s.name)
+
+    dates = []
+    ideal = []
+    actual = []
+    num_days = (end - sprint.start_date).days + 1
+    if num_days > 365:
+        num_days = 365  # safety cap
+
+    for day_offset in range(num_days):
+        current_date = sprint.start_date + timedelta(days=day_offset)
+        day_end = datetime(current_date.year, current_date.month, current_date.day, 23, 59, 59)
+
+        # Process logs up to this day
+        while log_idx < len(status_logs) and status_logs[log_idx].created_at <= day_end:
+            log = status_logs[log_idx]
+            if log.new_value in done_status_names:
+                done_items.add(log.work_item_id)
+            elif log.old_value in done_status_names:
+                done_items.discard(log.work_item_id)
+            log_idx += 1
+
+        done_sp = sum(sp_map.get(iid, 0) for iid in done_items)
+        remaining = total_sp - done_sp
+
+        dates.append(current_date.strftime("%b %d"))
+        actual.append(remaining)
+
+        # Ideal: linear from total_sp to 0
+        if num_days > 1:
+            ideal_val = total_sp - (total_sp * day_offset / (num_days - 1))
+        else:
+            ideal_val = 0
+        ideal.append(round(ideal_val, 1))
+
+    return jsonify({"dates": dates, "ideal": ideal, "actual": actual})
+
+
+@api_bp.route("/velocity")
+@auth_required()
+def velocity_data():
+    project_ids = _user_project_ids()
+    completed_sprints = (
+        Sprint.query.join(SprintProject)
+        .filter(
+            SprintProject.project_id.in_(project_ids),
+            Sprint.completed_at.isnot(None),
+        )
+        .distinct()
+        .order_by(Sprint.completed_at.desc())
+        .limit(10)
+        .all()
+    )
+    return jsonify({
+        "sprints": [
+            {
+                "name": s.name,
+                "committed": s.committed_sp_snapshot or 0,
+                "completed": s.completed_sp_snapshot or 0,
+            }
+            for s in reversed(completed_sprints)
+        ]
+    })
+
+
+@api_bp.route("/epics/<int:epic_id>/burndown")
+@auth_required()
+def epic_burndown(epic_id):
+    from datetime import date, timedelta
+    epic = Epic.query.get_or_404(epic_id)
+    membership = ProjectMembership.query.filter_by(
+        user_id=current_user.id, project_id=epic.project_id
+    ).first()
+    if not membership:
+        abort(403)
+
+    items = epic.work_items
+    if not items:
+        return jsonify({"dates": [], "actual": []})
+
+    total_sp = sum(i.story_points or 0 for i in items)
+    item_ids = [i.id for i in items]
+    sp_map = {i.id: (i.story_points or 0) for i in items}
+
+    status_logs = (
+        ActivityLog.query.filter(
+            ActivityLog.work_item_id.in_(item_ids),
+            ActivityLog.field_changed == "status",
+        ).order_by(ActivityLog.created_at).all()
+    )
+
+    from app.models.status import Status as StatusModel
+    done_status_names = set()
+    for s in StatusModel.query.filter_by(project_id=epic.project_id, category="done").all():
+        done_status_names.add(s.name)
+
+    if not status_logs:
+        today = date.today()
+        return jsonify({
+            "dates": [today.strftime("%b %d")],
+            "actual": [total_sp - sum(sp_map.get(i.id, 0) for i in items if i.status.category == "done")],
+        })
+
+    start = status_logs[0].created_at.date()
+    end = date.today()
+    done_items = set()
+    log_idx = 0
+    dates = []
+    actual = []
+
+    num_days = (end - start).days + 1
+    if num_days > 365:
+        num_days = 365
+
+    for day_offset in range(num_days):
+        current_date = start + timedelta(days=day_offset)
+        day_end = datetime(current_date.year, current_date.month, current_date.day, 23, 59, 59)
+
+        while log_idx < len(status_logs) and status_logs[log_idx].created_at <= day_end:
+            log = status_logs[log_idx]
+            if log.new_value in done_status_names:
+                done_items.add(log.work_item_id)
+            elif log.old_value in done_status_names:
+                done_items.discard(log.work_item_id)
+            log_idx += 1
+
+        done_sp = sum(sp_map.get(iid, 0) for iid in done_items)
+        dates.append(current_date.strftime("%b %d"))
+        actual.append(total_sp - done_sp)
+
+    return jsonify({"dates": dates, "actual": actual})
+
+
+@api_bp.route("/epics/<int:epic_id>", methods=["PATCH"])
+@auth_required()
+def update_epic(epic_id):
+    epic = Epic.query.get_or_404(epic_id)
+    membership = ProjectMembership.query.filter_by(
+        user_id=current_user.id, project_id=epic.project_id
+    ).first()
+    if not membership:
+        abort(403)
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    if "status" in data and data["status"] in ("to_do", "in_progress", "done"):
+        epic.status = data["status"]
+    if "position" in data:
+        epic.position = int(data["position"])
+    db.session.commit()
+    return jsonify({"ok": True, "status": epic.status, "position": epic.position})
+
+
+@api_bp.route("/items/<int:item_id>/labels", methods=["POST"])
+@auth_required()
+def add_label(item_id):
+    item = _get_item(item_id)
+    data = request.get_json()
+    label_id = data.get("label_id") if data else None
+    if not label_id:
+        return jsonify({"error": "label_id required"}), 400
+    label = Label.query.get_or_404(label_id)
+    if label.project_id != item.project_id:
+        abort(400)
+    if label not in item.labels:
+        item.labels.append(label)
+        db.session.commit()
+    return jsonify({"ok": True, "label": {"id": label.id, "name": label.name, "color": label.color}})
+
+
+@api_bp.route("/items/<int:item_id>/labels/<int:label_id>", methods=["DELETE"])
+@auth_required()
+def remove_label(item_id, label_id):
+    item = _get_item(item_id)
+    label = Label.query.get_or_404(label_id)
+    if label in item.labels:
+        item.labels.remove(label)
+        db.session.commit()
+    return jsonify({"ok": True})
+
+
+@api_bp.route("/items/bulk", methods=["PATCH"])
+@auth_required()
+def bulk_update():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+
+    item_ids = data.get("item_ids", [])
+    changes = data.get("changes", {})
+    if not item_ids or not changes:
+        return jsonify({"error": "item_ids and changes required"}), 400
+
+    items = WorkItem.query.filter(WorkItem.id.in_(item_ids)).all()
+    user_pids = set(_user_project_ids())
+
+    updated = 0
+    for item in items:
+        if item.project_id not in user_pids:
+            continue
+
+        if "status_id" in changes:
+            new_status = Status.query.get(changes["status_id"])
+            if new_status and new_status.project_id == item.project_id and new_status.id != item.status_id:
+                db.session.add(ActivityLog(
+                    work_item=item, user_id=current_user.id,
+                    field_changed="status",
+                    old_value=item.status.name, new_value=new_status.name,
+                ))
+                item.status_id = new_status.id
+
+        if "sprint_id" in changes:
+            item.sprint_id = changes["sprint_id"] or None
+
+        if "assignee_id" in changes:
+            new_aid = changes["assignee_id"] or None
+            if new_aid != item.assignee_id:
+                from app.models.user import User
+                old_name = item.assignee.display_name if item.assignee else "Unassigned"
+                new_user = User.query.get(new_aid) if new_aid else None
+                new_name = new_user.display_name if new_user else "Unassigned"
+                db.session.add(ActivityLog(
+                    work_item=item, user_id=current_user.id,
+                    field_changed="assignee",
+                    old_value=old_name, new_value=new_name,
+                ))
+                item.assignee_id = new_aid
+
+        if "priority" in changes:
+            new_p = validate_priority(changes["priority"])
+            if new_p != item.priority:
+                db.session.add(ActivityLog(
+                    work_item=item, user_id=current_user.id,
+                    field_changed="priority",
+                    old_value=item.priority, new_value=new_p,
+                ))
+                item.priority = new_p
+
+        updated += 1
+
+    db.session.commit()
+    return jsonify({"ok": True, "updated": updated})
+
+
+@api_bp.route("/items/bulk", methods=["DELETE"])
+@auth_required()
+def bulk_delete():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+
+    item_ids = data.get("item_ids", [])
+    if not item_ids:
+        return jsonify({"error": "item_ids required"}), 400
+
+    items = WorkItem.query.filter(WorkItem.id.in_(item_ids)).all()
+    user_pids = set(_user_project_ids())
+    deleted = 0
+    for item in items:
+        if item.project_id in user_pids:
+            db.session.delete(item)
+            deleted += 1
+
+    db.session.commit()
+    return jsonify({"ok": True, "deleted": deleted})

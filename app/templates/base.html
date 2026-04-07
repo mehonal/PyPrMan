@@ -61,6 +61,7 @@
                         <a href="{{ url_for('board.project_board', key=project.key) }}"><i class="bi bi-kanban me-1" style="font-size:0.75rem;"></i>Board</a>
                         <a href="{{ url_for('backlog.project_backlog', key=project.key) }}"><i class="bi bi-list-task me-1" style="font-size:0.75rem;"></i>Backlog</a>
                         <a href="{{ url_for('epics.list_epics', key=project.key) }}"><i class="bi bi-collection me-1" style="font-size:0.75rem;"></i>Epics</a>
+                        <a href="{{ url_for('board.story_map', key=project.key) }}"><i class="bi bi-map me-1" style="font-size:0.75rem;"></i>Story Map</a>
                         <a href="{{ url_for('sprints.list_sprints') }}"><i class="bi bi-lightning me-1" style="font-size:0.75rem;"></i>Sprints</a>
                         <a href="{{ url_for('settings.manage_statuses', key=project.key) }}"><i class="bi bi-gear me-1" style="font-size:0.75rem;"></i>Settings</a>
                     </div>
@@ -101,6 +102,9 @@
                 <button class="pp-mobile-toggle" id="mobileToggle" aria-label="Open menu">
                     <i class="bi bi-list"></i>
                 </button>
+                <button class="pp-sidebar-expand" id="sidebarExpand" aria-label="Expand sidebar">
+                    <i class="bi bi-layout-sidebar-inset"></i>
+                </button>
                 <nav aria-label="breadcrumb">
                     {% block breadcrumb %}{% endblock %}
                 </nav>
@@ -117,6 +121,39 @@
                 <div class="pp-topbar-actions">
                     {% block actions %}{% endblock %}
                 </div>
+                {% if sidebar_projects %}
+                <button class="pp-btn pp-btn-primary pp-btn-sm pp-quick-add-btn" id="quickAddBtn" title="New work item (N)">
+                    <i class="bi bi-plus-lg"></i><span class="pp-quick-add-label"> New Item</span>
+                </button>
+                <script>
+                    (function() {
+                        // Hide global button if page already has a create-item button in actions
+                        var actions = document.querySelector('.pp-topbar-actions');
+                        if (actions && actions.querySelector('[onclick*="createItem"]')) {
+                            document.getElementById('quickAddBtn').style.display = 'none';
+                        }
+                        var projects = [{% for p in sidebar_projects %}{ key: {{ p.key|tojson }}, name: {{ p.name|tojson }} }{% if not loop.last %},{% endif %}{% endfor %}];
+                        var activeKey = '{{ active_project.key if active_project else '' }}';
+                        document.getElementById('quickAddBtn').addEventListener('click', function() {
+                            if (projects.length === 1) {
+                                ppModal.createItem(projects[0].key);
+                            } else if (activeKey) {
+                                ppModal.createItem(activeKey);
+                            } else {
+                                ppModal.pickProjectThenCreate(projects);
+                            }
+                        });
+                        document.addEventListener('keydown', function(e) {
+                            if (e.key === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                                var tag = (e.target.tagName || '').toLowerCase();
+                                if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return;
+                                e.preventDefault();
+                                document.getElementById('quickAddBtn').click();
+                            }
+                        });
+                    })();
+                </script>
+                {% endif %}
             </header>
 
             <main class="pp-main" role="main">
@@ -153,10 +190,13 @@
         </div>
     </div>
 
+    {% include "_partials/bulk_actions.html" ignore missing %}
+
     <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/marked.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/api.js') }}"></script>
     <script src="{{ url_for('static', filename='js/modal.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bulk.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     {% block scripts %}{% endblock %}
 

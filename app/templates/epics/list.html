@@ -2,11 +2,15 @@
 {% block title %}Epics - {{ project.key }} - PyPrMan{% endblock %}
 {% block breadcrumb %}
 <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
     <li class="breadcrumb-item"><a href="{{ url_for('projects.detail', key=project.key) }}">{{ project.key }}</a></li>
     <li class="breadcrumb-item active">Epics</li>
 </ol>
 {% endblock %}
 {% block actions %}
+<a href="{{ url_for('epics.epic_board', key=project.key) }}" class="pp-btn pp-btn-secondary pp-btn-sm">
+    <i class="bi bi-kanban"></i><span class="d-none d-sm-inline"> Epic Board</span>
+</a>
 <button class="pp-btn pp-btn-primary pp-btn-sm" onclick="ppModal.createEpic('{{ project.key }}')">
     <i class="bi bi-plus-lg"></i> New Epic
 </button>
@@ -16,9 +20,30 @@
 {% for epic in epics %}
 <div class="pp-card mb-3">
     <div class="pp-card-body d-flex align-items-center gap-3 flex-wrap">
+        <div class="d-flex flex-column" style="gap:1px;">
+            {% if not loop.first %}
+            <form method="POST" action="{{ url_for('epics.reorder_epic', key=project.key) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="move_up">
+                <input type="hidden" name="epic_id" value="{{ epic.id }}">
+                <button type="submit" class="pp-btn pp-btn-ghost pp-btn-sm" style="padding:1px 4px;" title="Move up"><i class="bi bi-chevron-up" style="font-size:0.7rem;"></i></button>
+            </form>
+            {% endif %}
+            {% if not loop.last %}
+            <form method="POST" action="{{ url_for('epics.reorder_epic', key=project.key) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="move_down">
+                <input type="hidden" name="epic_id" value="{{ epic.id }}">
+                <button type="submit" class="pp-btn pp-btn-ghost pp-btn-sm" style="padding:1px 4px;" title="Move down"><i class="bi bi-chevron-down" style="font-size:0.7rem;"></i></button>
+            </form>
+            {% endif %}
+        </div>
         <span class="pp-status-dot" style="background:{{ epic.color }}; width:14px; height:14px;"></span>
         <div style="flex-grow:1;">
-            <h5 style="margin:0; font-size:0.9375rem;"><a href="{{ url_for('epics.detail_epic', key=project.key, epic_id=epic.id) }}" style="color:inherit; text-decoration:none;">{{ epic.name }}</a></h5>
+            <h5 style="margin:0; font-size:0.9375rem;">
+                <a href="{{ url_for('epics.detail_epic', key=project.key, epic_id=epic.id) }}" style="color:inherit; text-decoration:none;">{{ epic.name }}</a>
+                <span class="pp-badge {% if epic.status == 'in_progress' %}pp-badge-primary{% elif epic.status == 'done' %}pp-badge-success{% else %}pp-badge-muted{% endif %}" style="font-size:0.625rem; vertical-align:middle; margin-left:4px;">{{ epic.status|replace('_', ' ')|title }}</span>
+            </h5>
             {% if epic.description %}
             <p style="font-size:0.8125rem; color:var(--pp-text-secondary); margin:2px 0 0;">{{ epic.description[:100] }}{% if epic.description|length > 100 %}...{% endif %}</p>
             {% endif %}

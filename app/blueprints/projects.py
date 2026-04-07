@@ -3,6 +3,7 @@ from flask_security import auth_required, current_user
 
 from app.extensions import db
 from app.models.project import Project, ProjectMembership
+from app.models.work_item import WorkItem
 
 projects_bp = Blueprint("projects", __name__, url_prefix="/projects")
 
@@ -69,8 +70,24 @@ def create_project():
 @auth_required()
 def detail(key):
     project, membership = get_user_project(key)
+    recent_items = (
+        WorkItem.query.filter_by(project_id=project.id)
+        .options(
+            db.joinedload(WorkItem.item_type),
+            db.joinedload(WorkItem.status),
+            db.joinedload(WorkItem.assignee),
+        )
+        .order_by(WorkItem.updated_at.desc())
+        .limit(20)
+        .all()
+    )
+    total_items = WorkItem.query.filter_by(project_id=project.id).count()
     return render_template(
-        "projects/detail.html", project=project, membership=membership
+        "projects/detail.html",
+        project=project,
+        membership=membership,
+        recent_items=recent_items,
+        total_items=total_items,
     )
 
 

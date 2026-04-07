@@ -3,6 +3,7 @@ from flask_security import auth_required, current_user
 
 from app.extensions import db
 from app.models.item_type import ItemType
+from app.models.label import Label
 from app.models.project import Project, ProjectMembership
 from app.models.status import Status
 from app.models.user import User
@@ -196,3 +197,44 @@ def manage_members(key):
     return render_template(
         "settings/members.html", project=project, memberships=memberships
     )
+
+
+@settings_bp.route("/labels", methods=["GET", "POST"])
+@auth_required()
+def manage_labels(key):
+    project = _get_project_admin(key)
+
+    if request.method == "POST":
+        action = request.form.get("action")
+
+        if action == "add":
+            name = request.form.get("name", "").strip()
+            color = validate_hex_color(request.form.get("color", "#6b7280"))
+            if name:
+                db.session.add(Label(project=project, name=name, color=color))
+                db.session.commit()
+                flash("Label added.", "success")
+
+        elif action == "edit":
+            label_id = request.form.get("label_id", type=int)
+            label = Label.query.get_or_404(label_id)
+            if label.project_id != project.id:
+                abort(404)
+            label.name = request.form.get("name", "").strip() or label.name
+            label.color = validate_hex_color(request.form.get("color", label.color))
+            db.session.commit()
+            flash("Label updated.", "success")
+
+        elif action == "delete":
+            label_id = request.form.get("label_id", type=int)
+            label = Label.query.get_or_404(label_id)
+            if label.project_id != project.id:
+                abort(404)
+            db.session.delete(label)
+            db.session.commit()
+            flash("Label deleted.", "success")
+
+        return redirect(url_for("settings.manage_labels", key=key))
+
+    labels = Label.query.filter_by(project_id=project.id).all()
+    return render_template("settings/labels.html", project=project, labels=labels)

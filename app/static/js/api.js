@@ -28,5 +28,5 @@ var api = {
     get: function (url) { return this.request('GET', url); },
     post: function (url, data) { return this.request('POST', url, data); },
     patch: function (url, data) { return this.request('PATCH', url, data); },
-    del: function (url) { return this.request('DELETE', url); }
+    del: function (url, data) { return this.request('DELETE', url, data); }
 };

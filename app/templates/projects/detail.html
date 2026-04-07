@@ -48,17 +48,17 @@
 <div class="pp-card">
     <div class="pp-card-header">
         Recent Work Items
-        <span style="margin-left:auto; font-size:0.75rem; color:var(--pp-text-muted);">{{ project.work_items|length }} total</span>
+        <span style="margin-left:auto; font-size:0.75rem; color:var(--pp-text-muted);">{{ total_items }} total</span>
     </div>
     <div class="pp-card-body p-0">
-        {% for item in project.work_items[:20] %}
+        {% for item in recent_items %}
         <a href="{{ url_for('work_items.detail', key=project.key, item_key=item.item_key) }}" class="pp-list-item">
             <span class="item-key">{{ item.item_key }}</span>
             <i class="{{ item.item_type.icon }}" style="color:{{ item.item_type.color }}; font-size:0.875rem;" aria-hidden="true"></i>
             <span class="item-title">{{ item.title }}</span>
             <span class="item-meta">
                 <span class="pp-status-dot" style="background:{{ item.status.color }}" title="{{ item.status.name }}"></span>
-                <i class="{{ item.priority_icon }}" style="color:{{ item.priority_color }}; font-size:0.75rem;" title="{{ item.priority }}"></i>
+                <span class="pp-priority-badge pp-priority-{{ item.priority }}" title="{{ item.priority }}"><i class="{{ item.priority_icon }}"></i></span>
                 {% if item.story_points is not none %}<span class="pp-sp-badge" title="Story points">{{ item.story_points }}</span>{% endif %}
                 {% if item.assignee %}
                 <span class="pp-badge pp-badge-muted">{{ item.assignee.display_name[:8] }}</span>
@@ -66,7 +66,7 @@
             </span>
         </a>
         {% endfor %}
-        {% if not project.work_items %}
+        {% if not recent_items %}
         <div class="pp-empty" style="padding:32px;">
             <p style="margin:0;">No work items yet.</p>
             <button class="pp-btn pp-btn-primary pp-btn-sm" onclick="ppModal.createItem('{{ project.key }}')" style="margin-top:8px;">Create one</button>

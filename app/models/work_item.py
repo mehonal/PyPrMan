@@ -4,9 +4,9 @@ PRIORITIES = ["none", "low", "medium", "high", "critical"]
 
 PRIORITY_ICONS = {
     "none": "bi-dash",
-    "low": "bi-arrow-down",
-    "medium": "bi-arrow-right",
-    "high": "bi-arrow-up",
+    "low": "bi-chevron-down",
+    "medium": "bi-chevron-up",
+    "high": "bi-chevron-double-up",
     "critical": "bi-exclamation-triangle-fill",
 }
 
@@ -35,6 +35,7 @@ class WorkItem(db.Model):
     story_points = db.Column(db.Integer, nullable=True)
     position = db.Column(db.Integer, default=0)
     item_key = db.Column(db.String(20), unique=True, nullable=False)
+    due_date = db.Column(db.Date, nullable=True)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(
         db.DateTime, server_default=db.func.now(), onupdate=db.func.now()
@@ -55,6 +56,9 @@ class WorkItem(db.Model):
     activity_logs = db.relationship(
         "ActivityLog", back_populates="work_item", cascade="all, delete-orphan",
         order_by="ActivityLog.created_at.desc()",
+    )
+    labels = db.relationship(
+        "Label", secondary="work_item_labels", back_populates="work_items"
     )
 
     @property

@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}{{ sprint.name }} - PyPrMan{% endblock %}
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('sprints.list_sprints') }}">Sprints</a></li>
+    <li class="breadcrumb-item active">{{ sprint.name }}</li>
+</ol>
+{% endblock %}
+{% block actions %}
+<a href="{{ url_for('sprints.edit_sprint', sprint_id=sprint.id) }}" class="pp-btn pp-btn-secondary pp-btn-sm">
+    <i class="bi bi-pencil"></i> Edit
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
+    <h1 style="font-size:1.25rem; margin:0;">{{ sprint.name }}</h1>
+    {% if sprint.is_active %}<span class="pp-badge pp-badge-primary">Active</span>{% endif %}
+    {% if sprint.completed_at %}<span class="pp-badge pp-badge-muted">Completed {{ sprint.completed_at.strftime('%b %d, %Y') }}</span>{% endif %}
+    {% if sprint.start_date %}
+    <span style="font-size:0.8125rem; color:var(--pp-text-muted);">
+        <i class="bi bi-calendar"></i> {{ sprint.start_date.strftime('%b %d') }}{% if sprint.end_date %} - {{ sprint.end_date.strftime('%b %d, %Y') }}{% endif %}
+    </span>
+    {% endif %}
+</div>
+
+{% if sprint.goal %}
+<div class="pp-card mb-4">
+    <div class="pp-card-body" style="font-size:0.875rem;">
+        <strong>Goal:</strong> {{ sprint.goal }}
+    </div>
+</div>
+{% endif %}
+
+<div class="row g-4 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="pp-card">
+            <div class="pp-card-body text-center" style="padding:16px;">
+                <div style="font-size:1.5rem; font-weight:700; color:var(--pp-primary);">{{ committed_sp }}</div>
+                <div style="font-size:0.75rem; color:var(--pp-text-muted);">Committed SP</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="pp-card">
+            <div class="pp-card-body text-center" style="padding:16px;">
+                <div style="font-size:1.5rem; font-weight:700; color:var(--pp-success, #16a34a);">{{ completed_sp }}</div>
+                <div style="font-size:0.75rem; color:var(--pp-text-muted);">Completed SP</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="pp-card">
+            <div class="pp-card-body text-center" style="padding:16px;">
+                <div style="font-size:1.5rem; font-weight:700;">{{ items|length }}</div>
+                <div style="font-size:0.75rem; color:var(--pp-text-muted);">Total Items</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="pp-card">
+            <div class="pp-card-body text-center" style="padding:16px;">
+                <div style="font-size:1.5rem; font-weight:700; color:var(--pp-warning, #d97706);">{{ carryover_items|length }}</div>
+                <div style="font-size:0.75rem; color:var(--pp-text-muted);">Carryover</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if sprint.start_date %}
+<div class="pp-card mb-4">
+    <div class="pp-card-header">Sprint Burndown</div>
+    <div class="pp-card-body" style="position:relative; max-height:350px;">
+        <canvas id="burndownChart"></canvas>
+    </div>
+</div>
+{% endif %}
+
+{% if carryover_items %}
+<div class="pp-card mb-4">
+    <div class="pp-card-header">
+        Carryover Items
+        <span class="pp-badge pp-badge-muted" style="margin-left:auto;">{{ carryover_items|length }}</span>
+    </div>
+    <div class="pp-card-body p-0">
+        {% for item in carryover_items %}
+        <a href="{{ url_for('work_items.detail', key=item.project.key, item_key=item.item_key) }}" class="pp-list-item">
+            <span class="item-key">{{ item.item_key }}</span>
+            <i class="{{ item.item_type.icon }}" style="color:{{ item.item_type.color }}; font-size:0.875rem;"></i>
+            <span class="item-title">{{ item.title }}</span>
+            <span class="item-meta">
+                <span class="pp-status-dot" style="background:{{ item.status.color }}" title="{{ item.status.name }}"></span>
+                <span class="pp-priority-badge pp-priority-{{ item.priority }}"><i class="{{ item.priority_icon }}"></i></span>
+                {% if item.story_points is not none %}<span class="pp-sp-badge">{{ item.story_points }}</span>{% endif %}
+            </span>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if scope_changes %}
+<div class="pp-card mb-4">
+    <div class="pp-card-header">Scope Changes</div>
+    <div class="pp-card-body">
+        {% for log in scope_changes %}
+        <div style="padding:4px 0; font-size:0.8125rem; color:var(--pp-text-secondary);{% if not loop.last %} border-bottom:1px solid var(--pp-border);{% endif %}">
+            <strong>{{ log.user.display_name }}</strong>
+            changed sprint for <em>{{ log.work_item.item_key }}</em>
+            {% if log.old_value %}from <span style="text-decoration:line-through;">{{ log.old_value }}</span>{% endif %}
+            to <strong>{{ log.new_value }}</strong>
+            <span style="margin-left:8px; color:var(--pp-text-muted); font-size:0.75rem;">{{ log.created_at.strftime('%b %d, %Y %H:%M') }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="pp-card">
+    <div class="pp-card-header">
+        All Items
+        <span class="pp-badge pp-badge-muted" style="margin-left:auto;">{{ items|length }}</span>
+    </div>
+    <div class="pp-card-body p-0">
+        {% for item in items %}
+        <a href="{{ url_for('work_items.detail', key=item.project.key, item_key=item.item_key) }}" class="pp-list-item">
+            <span class="item-key">{{ item.item_key }}</span>
+            <i class="{{ item.item_type.icon }}" style="color:{{ item.item_type.color }}; font-size:0.875rem;"></i>
+            <span class="item-title">{{ item.title }}</span>
+            <span class="item-meta">
+                <span class="pp-status-dot" style="background:{{ item.status.color }}" title="{{ item.status.name }}"></span>
+                <span class="pp-priority-badge pp-priority-{{ item.priority }}"><i class="{{ item.priority_icon }}"></i></span>
+                {% if item.story_points is not none %}<span class="pp-sp-badge">{{ item.story_points }}</span>{% endif %}
+            </span>
+        </a>
+        {% endfor %}
+        {% if not items %}
+        <div class="pp-empty" style="padding:24px;"><p style="margin:0;">No items in this sprint.</p></div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
+<script>
+(function() {
+    var sprintId = {{ sprint.id }};
+    var canvas = document.getElementById('burndownChart');
+    if (!canvas) return;
+
+    api.get('/api/sprints/' + sprintId + '/burndown').then(function(data) {
+        if (!data.dates || data.dates.length === 0) return;
+        new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: data.dates,
+                datasets: [
+                    {
+                        label: 'Ideal',
+                        data: data.ideal,
+                        borderColor: '#94a3b8',
+                        borderDash: [6, 4],
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        fill: false,
+                    },
+                    {
+                        label: 'Actual',
+                        data: data.actual,
+                        borderColor: '#4f46e5',
+                        borderWidth: 2,
+                        pointRadius: 2,
+                        fill: false,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } },
+                scales: {
+                    y: { beginAtZero: true, title: { display: true, text: 'Story Points' } },
+                },
+            },
+        });
+    });
+})();
+</script>
+{% endblock %}

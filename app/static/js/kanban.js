@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function updateColumnCounts() {
         document.querySelectorAll('.kanban-column').forEach(function (col) {
             var body = col.querySelector('.kanban-column-body');
-            var badge = col.querySelector('.kanban-column-header .badge');
+            var badge = col.querySelector('.kanban-column-header .pp-badge');
             if (body && badge) {
                 badge.textContent = body.querySelectorAll('.kanban-card').length;
             }

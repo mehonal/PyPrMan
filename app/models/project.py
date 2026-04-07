@@ -29,6 +29,9 @@ class Project(db.Model):
     epics = db.relationship(
         "Epic", back_populates="project", cascade="all, delete-orphan"
     )
+    labels = db.relationship(
+        "Label", back_populates="project", cascade="all, delete-orphan"
+    )
     work_items = db.relationship(
         "WorkItem", back_populates="project", cascade="all, delete-orphan"
     )
@@ -54,7 +57,7 @@ class Project(db.Model):
                 category=category,
                 color=color,
                 position=position,
-                is_default=(position == 0),
+                is_default=(position == 1),
             )
             db.session.add(status)
 

@@ -1,0 +1,31 @@
+<div class="pp-bulk-bar" id="bulkBar" style="display:none;">
+    <div class="pp-bulk-bar-inner">
+        <span id="bulkCount" class="pp-bulk-count">0 selected</span>
+        <select class="pp-select pp-bulk-select" id="bulkStatus">
+            <option value="">Change Status...</option>
+        </select>
+        <select class="pp-select pp-bulk-select" id="bulkSprint">
+            <option value="">Change Sprint...</option>
+        </select>
+        <select class="pp-select pp-bulk-select" id="bulkAssignee">
+            <option value="">Change Assignee...</option>
+        </select>
+        <select class="pp-select pp-bulk-select" id="bulkPriority">
+            <option value="">Change Priority...</option>
+            <option value="none">None</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="critical">Critical</option>
+        </select>
+        <div class="pp-bulk-btn-row">
+            <button class="pp-btn pp-btn-primary pp-btn-sm" id="bulkApply">Apply</button>
+            <button class="pp-btn pp-btn-danger pp-btn-sm" id="bulkDelete" onclick="ppBulk.deleteSelected()">
+                <i class="bi bi-trash"></i>
+            </button>
+            <button class="pp-btn pp-btn-ghost pp-btn-sm" onclick="ppBulk.cancel()" title="Cancel selection">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+    </div>
+</div>

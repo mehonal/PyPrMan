@@ -2,6 +2,7 @@
 {% block title %}{{ epic.name }} - {{ project.key }} - PyPrMan{% endblock %}
 {% block breadcrumb %}
 <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
     <li class="breadcrumb-item"><a href="{{ url_for('projects.detail', key=project.key) }}">{{ project.key }}</a></li>
     <li class="breadcrumb-item"><a href="{{ url_for('epics.list_epics', key=project.key) }}">Epics</a></li>
     <li class="breadcrumb-item active">{{ epic.name }}</li>
@@ -28,6 +29,15 @@
     {% endif %}
 </div>
 
+{% if epic_stats.total %}
+<div class="pp-card mb-4" id="epicBurndownCard">
+    <div class="pp-card-header">Epic Burndown</div>
+    <div class="pp-card-body" style="position:relative; max-height:300px;">
+        <canvas id="epicBurndownChart"></canvas>
+    </div>
+</div>
+{% endif %}
+
 {% if epic.description %}
 <div class="pp-card mb-4">
     <div class="pp-card-body">
@@ -52,7 +62,7 @@
             <span class="item-title">{{ item.title }}</span>
             <span class="item-meta">
                 <span class="pp-status-dot" style="background:{{ item.status.color }}" title="{{ item.status.name }}"></span>
-                <i class="{{ item.priority_icon }}" style="color:{{ item.priority_color }}; font-size:0.75rem;" title="{{ item.priority }}"></i>
+                <span class="pp-priority-badge pp-priority-{{ item.priority }}" title="{{ item.priority }}"><i class="{{ item.priority_icon }}"></i></span>
                 <span class="pp-sp-badge" data-sp-edit data-item-id="{{ item.id }}" data-sp="{{ item.story_points if item.story_points is not none else '' }}" title="Story points">{{ item.story_points if item.story_points is not none else '—' }}</span>
                 {% if item.assignee %}
                 <span class="pp-badge pp-badge-muted">{{ item.assignee.display_name[:8] }}</span>
@@ -68,4 +78,41 @@
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{% if epic_stats.total %}
+<script src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
+<script>
+(function() {
+    var canvas = document.getElementById('epicBurndownChart');
+    if (!canvas) return;
+    api.get('/api/epics/{{ epic.id }}/burndown').then(function(data) {
+        if (!data.dates || data.dates.length === 0) return;
+        new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: data.dates,
+                datasets: [{
+                    label: 'Remaining SP',
+                    data: data.actual,
+                    borderColor: '{{ epic.color }}',
+                    borderWidth: 2,
+                    pointRadius: 2,
+                    fill: false,
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } },
+                scales: {
+                    y: { beginAtZero: true, title: { display: true, text: 'Story Points' } },
+                },
+            },
+        });
+    });
+})();
+</script>
+{% endif %}
 {% endblock %}

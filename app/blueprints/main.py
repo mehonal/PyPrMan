@@ -3,6 +3,7 @@ from flask_security import auth_required, current_user
 
 from app.extensions import db
 from app.models.project import Project, ProjectMembership
+from app.models.status import Status
 from app.models.work_item import WorkItem
 
 main_bp = Blueprint("main", __name__)
@@ -23,19 +24,27 @@ def dashboard():
         for m in ProjectMembership.query.filter_by(user_id=current_user.id).all()
     ]
     projects = Project.query.filter(Project.id.in_(user_project_ids)).all()
+    _eager = (
+        db.joinedload(WorkItem.status),
+        db.joinedload(WorkItem.item_type),
+        db.joinedload(WorkItem.project),
+        db.joinedload(WorkItem.assignee),
+    )
     my_items = (
         WorkItem.query.filter(
             WorkItem.assignee_id == current_user.id,
             WorkItem.project_id.in_(user_project_ids),
         )
         .join(WorkItem.status)
-        .filter(db.not_(db.literal_column("status.category").in_(["done"])))
+        .filter(Status.category != "done")
+        .options(*_eager)
         .order_by(WorkItem.updated_at.desc())
         .limit(20)
         .all()
     )
     recent_items = (
         WorkItem.query.filter(WorkItem.project_id.in_(user_project_ids))
+        .options(*_eager)
         .order_by(WorkItem.updated_at.desc())
         .limit(10)
         .all()

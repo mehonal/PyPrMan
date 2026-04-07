@@ -37,12 +37,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function setSidebarCollapsed(state) {
         if (state) {
-            sidebar.style.transform = 'translateX(-100%)';
-            content.style.marginLeft = '0';
+            document.body.classList.add('pp-sidebar-collapsed');
         } else {
-            sidebar.style.transform = '';
-            content.style.marginLeft = '';
+            document.body.classList.remove('pp-sidebar-collapsed');
         }
+    }
+
+    // ---- Sidebar Expand (from topbar when collapsed) ----
+    var sidebarExpand = document.getElementById('sidebarExpand');
+    if (sidebarExpand) {
+        sidebarExpand.addEventListener('click', function () {
+            collapsed = false;
+            setSidebarCollapsed(false);
+            localStorage.setItem('sidebarCollapsed', false);
+        });
     }
 
     // ---- Sidebar Toggle (Mobile) ----
