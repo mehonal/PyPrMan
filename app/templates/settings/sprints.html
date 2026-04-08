@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Sprints - {{ project.key }} - PyPrMan{% endblock %}
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('projects.detail', key=project.key) }}">{{ project.key }}</a></li>
+    <li class="breadcrumb-item active">Settings</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:640px;">
+    <div class="pp-settings-tabs mb-4">
+        <a href="{{ url_for('settings.manage_statuses', key=project.key) }}" class="pp-settings-tab">Statuses</a>
+        <a href="{{ url_for('settings.manage_types', key=project.key) }}" class="pp-settings-tab">Types</a>
+        <a href="{{ url_for('settings.manage_labels', key=project.key) }}" class="pp-settings-tab">Labels</a>
+        <a href="{{ url_for('settings.manage_members', key=project.key) }}" class="pp-settings-tab">Members</a>
+        <a href="{{ url_for('settings.manage_sprints', key=project.key) }}" class="pp-settings-tab active">Sprints</a>
+    </div>
+
+    {% if available_sprints %}
+    <div class="pp-card mb-4">
+        <div class="pp-card-header">Add Sprints to Project</div>
+        <div class="pp-card-body">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="add">
+                <div style="max-height:200px; overflow-y:auto; margin-bottom:12px;">
+                    {% for sprint in available_sprints %}
+                    <div class="form-check" style="margin-bottom:6px;">
+                        <input class="form-check-input" type="checkbox" name="sprint_ids" value="{{ sprint.id }}" id="sprint_{{ sprint.id }}">
+                        <label class="form-check-label" for="sprint_{{ sprint.id }}" style="font-size:0.875rem;">
+                            {{ sprint.name }}
+                            {% if sprint.is_active %}<span class="pp-badge pp-badge-primary" style="font-size:0.625rem;">Active</span>{% endif %}
+                            {% if sprint.start_date %}<span style="color:var(--pp-text-muted); font-size:0.75rem;"> ({{ sprint.start_date.strftime('%b %d') }}{% if sprint.end_date %} - {{ sprint.end_date.strftime('%b %d') }}{% endif %})</span>{% endif %}
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="submit" class="pp-btn pp-btn-primary pp-btn-sm">Add Selected</button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="pp-card">
+        <div class="pp-card-header">Current Sprints</div>
+        <div class="pp-card-body p-0">
+            {% for sp in current_sprint_projects %}
+            <div class="pp-list-item" style="justify-content:space-between;">
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{{ url_for('sprints.sprint_detail', sprint_id=sp.sprint.id) }}" style="font-size:0.875rem; text-decoration:none; color:inherit; font-weight:500;">{{ sp.sprint.name }}</a>
+                    {% if sp.sprint.is_active %}<span class="pp-badge pp-badge-primary" style="font-size:0.625rem;">Active</span>{% endif %}
+                    {% if sp.sprint.completed_at %}<span class="pp-badge pp-badge-muted" style="font-size:0.625rem;">Completed</span>{% endif %}
+                </div>
+                <form method="POST" class="d-inline" onsubmit="return confirm('Remove this sprint from the project?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="remove">
+                    <input type="hidden" name="sprint_id" value="{{ sp.sprint.id }}">
+                    <button type="submit" class="pp-btn pp-btn-ghost pp-btn-sm" style="color:var(--pp-danger);" title="Remove">
+                        <i class="bi bi-x-lg" style="font-size:0.625rem;"></i>
+                    </button>
+                </form>
+            </div>
+            {% endfor %}
+            {% if not current_sprint_projects %}
+            <div class="pp-empty" style="padding:24px;">
+                <p style="margin:0; font-size:0.8125rem;">No sprints assigned to this project.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

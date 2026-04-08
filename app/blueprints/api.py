@@ -10,6 +10,7 @@ from app.models.label import Label
 from app.models.project import Project, ProjectMembership
 from app.models.sprint import Sprint, SprintProject
 from app.models.status import Status
+from app.models.link import LINK_REVERSE, LINK_TYPES, WorkItemLink
 from app.models.work_item import WorkItem
 from app.validation import (
     validate_hex_color,
@@ -289,7 +290,15 @@ def update_item(item_id):
         item.epic_id = data["epic_id"] or None
 
     if "sprint_id" in data:
-        item.sprint_id = data["sprint_id"] or None
+        new_sprint_id = data["sprint_id"] or None
+        if new_sprint_id != item.sprint_id:
+            old_sprint = item.sprint
+            new_sprint = Sprint.query.get(new_sprint_id) if new_sprint_id else None
+            changes["sprint"] = (
+                old_sprint.name if old_sprint else "None",
+                new_sprint.name if new_sprint else "None",
+            )
+            item.sprint_id = new_sprint_id
 
     if "story_points" in data:
         new_sp = data["story_points"]
@@ -596,6 +605,24 @@ def update_epic(epic_id):
     return jsonify({"ok": True, "status": epic.status, "position": epic.position})
 
 
+@api_bp.route("/projects/<key>/labels", methods=["POST"])
+@auth_required()
+def create_label(key):
+    project = _get_project(key)
+    data = request.get_json()
+    if not data or not data.get("name", "").strip():
+        return jsonify({"error": "Name is required"}), 400
+    name = data["name"].strip()
+    color = validate_hex_color(data.get("color", "#6b7280"))
+    existing = Label.query.filter_by(project_id=project.id, name=name).first()
+    if existing:
+        return jsonify({"ok": True, "label": {"id": existing.id, "name": existing.name, "color": existing.color}})
+    label = Label(project=project, name=name, color=color)
+    db.session.add(label)
+    db.session.commit()
+    return jsonify({"ok": True, "label": {"id": label.id, "name": label.name, "color": label.color}}), 201
+
+
 @api_bp.route("/items/<int:item_id>/labels", methods=["POST"])
 @auth_required()
 def add_label(item_id):
@@ -708,3 +735,100 @@ def bulk_delete():
 
     db.session.commit()
     return jsonify({"ok": True, "deleted": deleted})
+
+
+# ---- Links / Relations ----
+
+@api_bp.route("/items/<int:item_id>/links", methods=["GET"])
+@auth_required()
+def get_links(item_id):
+    item = _get_item(item_id)
+    links = []
+    for link in item.outgoing_links:
+        links.append({
+            "id": link.id,
+            "direction": "outgoing",
+            "link_type": link.link_type,
+            "label": LINK_TYPES.get(link.link_type, {}).get("label", link.link_type),
+            "item": {
+                "id": link.target.id,
+                "item_key": link.target.item_key,
+                "title": link.target.title,
+                "project_key": link.target.project.key,
+            },
+        })
+    for link in item.incoming_links:
+        reverse_type = LINK_REVERSE.get(link.link_type, link.link_type)
+        links.append({
+            "id": link.id,
+            "direction": "incoming",
+            "link_type": reverse_type,
+            "label": LINK_TYPES.get(reverse_type, {}).get("label", reverse_type),
+            "item": {
+                "id": link.source.id,
+                "item_key": link.source.item_key,
+                "title": link.source.title,
+                "project_key": link.source.project.key,
+            },
+        })
+    return jsonify({"links": links})
+
+
+@api_bp.route("/items/<int:item_id>/links", methods=["POST"])
+@auth_required()
+def add_link(item_id):
+    item = _get_item(item_id)
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data"}), 400
+
+    link_type = data.get("link_type")
+    target_key = data.get("target_key", "").strip().upper()
+
+    if link_type not in LINK_TYPES:
+        return jsonify({"error": "Invalid link type"}), 400
+
+    target = WorkItem.query.filter_by(item_key=target_key).first()
+    if not target:
+        return jsonify({"error": "Item not found: " + target_key}), 404
+    if target.id == item.id:
+        return jsonify({"error": "Cannot link item to itself"}), 400
+
+    # Check for existing link
+    existing = WorkItemLink.query.filter_by(
+        source_id=item.id, target_id=target.id, link_type=link_type
+    ).first()
+    if existing:
+        return jsonify({"error": "Link already exists"}), 409
+
+    link = WorkItemLink(source_id=item.id, target_id=target.id, link_type=link_type)
+    db.session.add(link)
+    db.session.commit()
+
+    return jsonify({
+        "ok": True,
+        "link": {
+            "id": link.id,
+            "direction": "outgoing",
+            "link_type": link.link_type,
+            "label": LINK_TYPES[link.link_type]["label"],
+            "item": {
+                "id": target.id,
+                "item_key": target.item_key,
+                "title": target.title,
+                "project_key": target.project.key,
+            },
+        },
+    })
+
+
+@api_bp.route("/items/<int:item_id>/links/<int:link_id>", methods=["DELETE"])
+@auth_required()
+def delete_link(item_id, link_id):
+    _get_item(item_id)
+    link = WorkItemLink.query.get_or_404(link_id)
+    if link.source_id != item_id and link.target_id != item_id:
+        abort(404)
+    db.session.delete(link)
+    db.session.commit()
+    return jsonify({"ok": True})

@@ -389,6 +389,9 @@ var ppInline = (function () {
             }
             var text = displayEl.querySelector('.pp-inline-text');
             if (text) text.textContent = opt.label;
+        } else if (field === 'sprint_id') {
+            var text = displayEl.querySelector('.pp-inline-text');
+            if (text) text.textContent = opt.label;
         }
     }
 
@@ -452,19 +455,21 @@ var ppComments = (function () {
         div.className = 'pp-comment';
         div.id = 'comment-' + comment.id;
 
+        var initials = escapeHtml(comment.author.substring(0, 2));
         var deleteBtn = comment.is_mine
-            ? '<button data-delete-comment="' + comment.id + '" class="pp-btn pp-btn-ghost pp-btn-sm" style="padding:2px 6px; color:var(--pp-danger);" title="Delete"><i class="bi bi-trash" style="font-size:0.75rem;"></i></button>'
+            ? '<button data-delete-comment="' + comment.id + '" class="pp-btn pp-btn-ghost pp-btn-sm" style="padding:2px 4px; color:var(--pp-danger); margin-left:auto;" title="Delete"><i class="bi bi-trash" style="font-size:0.6875rem;"></i></button>'
             : '';
 
         div.innerHTML =
-            '<div class="pp-comment-header">' +
-                '<strong style="font-size:0.8125rem;">' + escapeHtml(comment.author) + '</strong>' +
-                '<div class="d-flex align-items-center gap-2">' +
-                    '<span style="color:var(--pp-text-muted); font-size:0.75rem;">' + escapeHtml(comment.created_at) + '</span>' +
+            '<div class="pp-comment-avatar">' + initials + '</div>' +
+            '<div class="pp-comment-content">' +
+                '<div class="pp-comment-header">' +
+                    '<span class="pp-comment-author">' + escapeHtml(comment.author) + '</span>' +
+                    '<span class="pp-comment-time">' + escapeHtml(comment.created_at) + '</span>' +
                     deleteBtn +
                 '</div>' +
-            '</div>' +
-            '<p style="margin:0; white-space:pre-wrap; font-size:0.8125rem;">' + escapeHtml(comment.body) + '</p>';
+                '<div class="pp-comment-body">' + escapeHtml(comment.body) + '</div>' +
+            '</div>';
 
         list.appendChild(div);
     }
@@ -484,9 +489,53 @@ var ppComments = (function () {
 var ppLabels = (function () {
     'use strict';
 
+    var _backdrop = null;
+
     function toggle() {
         var dd = document.getElementById('label-dropdown');
-        if (dd) dd.style.display = dd.style.display === 'none' ? '' : 'none';
+        if (!dd) return;
+        var isOpen = dd.style.display !== 'none' && dd.parentNode === document.body;
+        if (isOpen) {
+            _close();
+            return;
+        }
+        var btn = document.getElementById('add-label-btn');
+        var rect = btn.getBoundingClientRect();
+        dd.style.position = 'fixed';
+        dd.style.zIndex = '1100';
+        dd.style.display = '';
+        // Move to body so it's not clipped
+        document.body.appendChild(dd);
+        // Position below the button, left-aligned
+        var top = rect.bottom + 2;
+        var left = rect.left;
+        // Keep on screen
+        if (left + 200 > window.innerWidth) left = window.innerWidth - 210;
+        if (left < 8) left = 8;
+        if (top + 240 > window.innerHeight) top = rect.top - 240;
+        if (top < 8) top = 8;
+        dd.style.top = top + 'px';
+        dd.style.left = left + 'px';
+        dd.style.minWidth = '200px';
+
+        _backdrop = document.createElement('div');
+        _backdrop.style.cssText = 'position:fixed; inset:0; z-index:1099;';
+        _backdrop.addEventListener('click', _close);
+        document.body.appendChild(_backdrop);
+    }
+
+    function _close() {
+        var dd = document.getElementById('label-dropdown');
+        if (dd) {
+            dd.style.display = 'none';
+            // Move back to its original parent so template references still work
+            var picker = document.querySelector('.pp-label-picker');
+            if (picker && dd.parentNode !== picker) picker.appendChild(dd);
+        }
+        if (_backdrop && _backdrop.parentNode) {
+            _backdrop.parentNode.removeChild(_backdrop);
+            _backdrop = null;
+        }
     }
 
     function add(itemId, labelId, name, color, btn) {
@@ -532,18 +581,40 @@ var ppLabels = (function () {
         return div.innerHTML;
     }
 
-    return { toggle: toggle, add: add, remove: remove };
+    function create(itemId, projectKey) {
+        var nameInput = document.getElementById('new-label-name');
+        var colorInput = document.getElementById('new-label-color');
+        var name = nameInput.value.trim();
+        if (!name) return;
+
+        api.post('/api/projects/' + projectKey + '/labels', {
+            name: name,
+            color: colorInput.value
+        }).then(function (res) {
+            if (res.ok) {
+                var label = res.label;
+                // Add the new label option to the dropdown
+                var dd = document.getElementById('label-dropdown');
+                var createSection = dd.querySelector('.pp-label-create');
+                var btn = document.createElement('button');
+                btn.className = 'pp-label-option';
+                btn.setAttribute('onclick', 'ppLabels.add(' + itemId + ', ' + label.id + ', \'' + escapeHtml(label.name).replace(/'/g, "\\'") + '\', \'' + label.color + '\', this)');
+                btn.dataset.labelId = label.id;
+                btn.innerHTML = '<span class="pp-label-dot" style="background:' + label.color + ';"></span> ' + escapeHtml(label.name);
+                dd.insertBefore(btn, createSection);
+
+                // Immediately add it to the item too
+                nameInput.value = '';
+                add(itemId, label.id, label.name, label.color, btn);
+            }
+        }).catch(function (err) {
+            console.error('Create label failed:', err);
+        });
+    }
+
+    return { toggle: toggle, add: add, remove: remove, create: create };
 })();
 
 document.addEventListener('DOMContentLoaded', function () {
     ppInline.init();
-
-    // Close label dropdown when clicking outside
-    document.addEventListener('click', function (e) {
-        var dd = document.getElementById('label-dropdown');
-        if (dd && dd.style.display !== 'none') {
-            var picker = e.target.closest('.pp-label-picker');
-            if (!picker) dd.style.display = 'none';
-        }
-    });
 });

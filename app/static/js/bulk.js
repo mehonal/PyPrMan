@@ -54,7 +54,8 @@ var ppBulk = (function () {
     function loadOptions() {
         // Find a project key from the page
         var projectKey = null;
-        var keyEl = document.querySelector('[data-project-key]');
+        var keyEl = document.querySelector('.pp-project-item.active[data-project-key]');
+        if (!keyEl) keyEl = document.querySelector('[data-project-key]');
         if (keyEl) projectKey = keyEl.dataset.projectKey;
         if (!projectKey) {
             // Try breadcrumb

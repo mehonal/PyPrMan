@@ -53,12 +53,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (!draggedCard) return;
 
-            col.appendChild(draggedCard);
+            var afterElement = getDropAfterElement(col, e.clientY);
+            if (afterElement) {
+                col.insertBefore(draggedCard, afterElement);
+            } else {
+                col.appendChild(draggedCard);
+            }
 
             var itemId = draggedCard.dataset.itemId;
             var statusId = col.dataset.statusId;
             var cards = col.querySelectorAll('.kanban-card');
             var position = Array.prototype.indexOf.call(cards, draggedCard);
+            var siblingIds = Array.prototype.map.call(cards, function (c) {
+                return parseInt(c.dataset.itemId);
+            });
 
             fetch('/board/move', {
                 method: 'POST',
@@ -69,7 +77,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 body: JSON.stringify({
                     item_id: parseInt(itemId),
                     status_id: parseInt(statusId),
-                    position: position
+                    position: position,
+                    sibling_ids: siblingIds
                 })
             }).then(function (res) {
                 if (!res.ok) {
@@ -82,6 +91,23 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
     });
+
+    function getDropAfterElement(container, y) {
+        var elements = Array.from(
+            container.querySelectorAll('.kanban-card:not(.dragging)')
+        );
+        var closest = null;
+        var closestOffset = Number.NEGATIVE_INFINITY;
+        elements.forEach(function (child) {
+            var box = child.getBoundingClientRect();
+            var offset = y - box.top - box.height / 2;
+            if (offset < 0 && offset > closestOffset) {
+                closestOffset = offset;
+                closest = child;
+            }
+        });
+        return closest;
+    }
 
     function updateColumnCounts() {
         document.querySelectorAll('.kanban-column').forEach(function (col) {
@@ -97,6 +123,36 @@ document.addEventListener('DOMContentLoaded', function () {
     var touchCard = null;
     var touchClone = null;
     var touchStartX, touchStartY;
+    var autoScrollRAF = null;
+    var boardEl = document.querySelector('.kanban-board');
+
+    function startAutoScroll(touchX) {
+        stopAutoScroll();
+        if (!boardEl) return;
+        var edgeZone = 40;
+        var maxSpeed = 12;
+        var rect = boardEl.getBoundingClientRect();
+        var distLeft = touchX - rect.left;
+        var distRight = rect.right - touchX;
+        var speed = 0;
+        if (distLeft < edgeZone) {
+            speed = -maxSpeed * (1 - distLeft / edgeZone);
+        } else if (distRight < edgeZone) {
+            speed = maxSpeed * (1 - distRight / edgeZone);
+        }
+        if (speed === 0) return;
+        (function scroll() {
+            boardEl.scrollLeft += speed;
+            autoScrollRAF = requestAnimationFrame(scroll);
+        })();
+    }
+
+    function stopAutoScroll() {
+        if (autoScrollRAF) {
+            cancelAnimationFrame(autoScrollRAF);
+            autoScrollRAF = null;
+        }
+    }
 
     document.querySelectorAll('.kanban-card').forEach(function (card) {
         card.addEventListener('touchstart', function (e) {
@@ -127,11 +183,13 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             touchClone.style.left = (touch.clientX - 50) + 'px';
             touchClone.style.top = (touch.clientY - 20) + 'px';
+            startAutoScroll(touch.clientX);
             e.preventDefault();
         }
     }, { passive: false });
 
     document.addEventListener('touchend', function (e) {
+        stopAutoScroll();
         if (!touchCard || !touchClone) {
             touchCard = null;
             return;
@@ -145,12 +203,20 @@ document.addEventListener('DOMContentLoaded', function () {
         var targetCol = dropTarget ? dropTarget.closest('.kanban-column-body') : null;
 
         if (targetCol) {
-            targetCol.appendChild(touchCard);
+            var afterEl = getDropAfterElement(targetCol, touch.clientY);
+            if (afterEl) {
+                targetCol.insertBefore(touchCard, afterEl);
+            } else {
+                targetCol.appendChild(touchCard);
+            }
 
             var itemId = touchCard.dataset.itemId;
             var statusId = targetCol.dataset.statusId;
             var cards = targetCol.querySelectorAll('.kanban-card');
             var position = Array.prototype.indexOf.call(cards, touchCard);
+            var siblingIds = Array.prototype.map.call(cards, function (c) {
+                return parseInt(c.dataset.itemId);
+            });
 
             fetch('/board/move', {
                 method: 'POST',
@@ -161,7 +227,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 body: JSON.stringify({
                     item_id: parseInt(itemId),
                     status_id: parseInt(statusId),
-                    position: position
+                    position: position,
+                    sibling_ids: siblingIds
                 })
             }).then(function (res) {
                 if (!res.ok) location.reload();

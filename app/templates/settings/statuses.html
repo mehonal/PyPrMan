@@ -15,6 +15,7 @@
         <a href="{{ url_for('settings.manage_types', key=project.key) }}" class="pp-settings-tab">Types</a>
         <a href="{{ url_for('settings.manage_labels', key=project.key) }}" class="pp-settings-tab">Labels</a>
         <a href="{{ url_for('settings.manage_members', key=project.key) }}" class="pp-settings-tab">Members</a>
+        <a href="{{ url_for('settings.manage_sprints', key=project.key) }}" class="pp-settings-tab">Sprints</a>
     </div>
 
     <div class="pp-card mb-4">
@@ -30,7 +31,6 @@
                 <div class="col-md-3">
                     <label class="pp-form-label" for="category">Category</label>
                     <select class="pp-select" id="category" name="category">
-                        <option value="backlog">Backlog</option>
                         <option value="todo" selected>To Do</option>
                         <option value="in_progress">In Progress</option>
                         <option value="done">Done</option>
@@ -77,7 +77,7 @@
                     <span class="pp-status-dot" style="background:{{ status.color }}"></span>
                     <input type="text" class="pp-input" name="name" value="{{ status.name }}" style="width:120px; padding:4px 8px; font-size:0.8125rem;">
                     <select class="pp-select" name="category" style="width:auto; padding:4px 8px; font-size:0.8125rem;">
-                        {% for cat in ['backlog', 'todo', 'in_progress', 'done'] %}
+                        {% for cat in ['todo', 'in_progress', 'done'] %}
                         <option value="{{ cat }}" {% if status.category == cat %}selected{% endif %}>{{ cat|replace('_', ' ')|title }}</option>
                         {% endfor %}
                     </select>

@@ -205,6 +205,167 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // ---- Quick Priority Edit (board + backlog) ----
+    var priorityOptions = [
+        {value: 'none', label: 'None', icon: 'bi bi-dash', cls: 'pp-priority-none'},
+        {value: 'low', label: 'Low', icon: 'bi bi-chevron-down', cls: 'pp-priority-low'},
+        {value: 'medium', label: 'Medium', icon: 'bi bi-chevron-up', cls: 'pp-priority-medium'},
+        {value: 'high', label: 'High', icon: 'bi bi-chevron-double-up', cls: 'pp-priority-high'},
+        {value: 'critical', label: 'Critical', icon: 'bi bi-exclamation-triangle-fill', cls: 'pp-priority-critical'},
+    ];
+
+    function positionDropdown(dd, badge) {
+        var rect = badge.getBoundingClientRect();
+        dd.style.position = 'fixed';
+        dd.style.zIndex = '1100';
+        // Try below the badge, aligned right
+        var top = rect.bottom + 2;
+        var left = rect.right - 140;
+        if (left < 8) left = 8;
+        // If it would go off bottom, show above
+        if (top + 220 > window.innerHeight) top = rect.top - 220;
+        if (top < 8) top = 8;
+        dd.style.top = top + 'px';
+        dd.style.left = left + 'px';
+    }
+
+    document.addEventListener('click', function (e) {
+        var badge = e.target.closest('[data-quick-priority]');
+        if (!badge) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (document.querySelector('.pp-quick-dropdown')) return;
+
+        var itemId = badge.dataset.itemId;
+        var current = badge.dataset.current;
+
+        var dd = document.createElement('div');
+        dd.className = 'pp-quick-dropdown';
+
+        priorityOptions.forEach(function (opt) {
+            var row = document.createElement('div');
+            row.className = 'pp-quick-option';
+            if (opt.value === current) row.classList.add('selected');
+            row.innerHTML = '<span class="pp-priority-badge ' + opt.cls + '"><i class="' + opt.icon + '"></i></span> ' + opt.label;
+            row.addEventListener('click', function (ev) {
+                ev.preventDefault();
+                ev.stopPropagation();
+                api.patch('/api/items/' + itemId, {priority: opt.value}).then(function (res) {
+                    if (res.ok) {
+                        badge.className = badge.className.replace(/pp-priority-\w+/g, '') + ' pp-priority-' + opt.value;
+                        badge.title = opt.label;
+                        badge.dataset.current = opt.value;
+                        var icon = badge.querySelector('i');
+                        if (icon) icon.className = res.item.priority_icon || opt.icon;
+                    }
+                });
+                closeQuickDropdown();
+            });
+            dd.appendChild(row);
+        });
+
+        document.body.appendChild(dd);
+        positionDropdown(dd, badge);
+
+        var backdrop = document.createElement('div');
+        backdrop.className = 'pp-quick-backdrop';
+        backdrop.addEventListener('click', function (ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            closeQuickDropdown();
+        });
+        document.body.appendChild(backdrop);
+
+        function closeQuickDropdown() {
+            if (dd.parentNode) dd.parentNode.removeChild(dd);
+            if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+        }
+    });
+
+    // ---- Quick Assignee Edit (board + backlog) ----
+    var membersCache = {};
+
+    function getMembers(projectKey, callback) {
+        if (membersCache[projectKey]) {
+            callback(membersCache[projectKey]);
+            return;
+        }
+        api.get('/api/projects/' + projectKey + '/form-options').then(function (data) {
+            membersCache[projectKey] = data.members;
+            callback(data.members);
+        });
+    }
+
+    document.addEventListener('click', function (e) {
+        var badge = e.target.closest('[data-quick-assignee]');
+        if (!badge) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (document.querySelector('.pp-quick-dropdown')) return;
+
+        var itemId = badge.dataset.itemId;
+        var projectKey = badge.dataset.projectKey;
+        var current = badge.dataset.current;
+
+        getMembers(projectKey, function (members) {
+            var dd = document.createElement('div');
+            dd.className = 'pp-quick-dropdown';
+
+            var unassign = document.createElement('div');
+            unassign.className = 'pp-quick-option';
+            if (!current) unassign.classList.add('selected');
+            unassign.textContent = 'Unassigned';
+            unassign.addEventListener('click', function (ev) {
+                ev.preventDefault();
+                ev.stopPropagation();
+                api.patch('/api/items/' + itemId, {assignee_id: null}).then(function (res) {
+                    if (res.ok) {
+                        badge.childNodes[0].textContent = '\u2014';
+                        badge.dataset.current = '';
+                    }
+                });
+                closeQuickDropdown();
+            });
+            dd.appendChild(unassign);
+
+            members.forEach(function (m) {
+                var row = document.createElement('div');
+                row.className = 'pp-quick-option';
+                if (String(m.id) === String(current)) row.classList.add('selected');
+                row.textContent = m.name;
+                row.addEventListener('click', function (ev) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    api.patch('/api/items/' + itemId, {assignee_id: m.id}).then(function (res) {
+                        if (res.ok) {
+                            badge.childNodes[0].textContent = m.name.substring(0, 8);
+                            badge.dataset.current = m.id;
+                        }
+                    });
+                    closeQuickDropdown();
+                });
+                dd.appendChild(row);
+            });
+
+            document.body.appendChild(dd);
+            positionDropdown(dd, badge);
+
+            var backdrop = document.createElement('div');
+            backdrop.className = 'pp-quick-backdrop';
+            backdrop.addEventListener('click', function (ev) {
+                ev.preventDefault();
+                ev.stopPropagation();
+                closeQuickDropdown();
+            });
+            document.body.appendChild(backdrop);
+
+            function closeQuickDropdown() {
+                if (dd.parentNode) dd.parentNode.removeChild(dd);
+                if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+            }
+        });
+    });
+
     // ---- Auto-dismiss alerts after 5s ----
     document.querySelectorAll('.pp-alert').forEach(function (alert) {
         setTimeout(function () {

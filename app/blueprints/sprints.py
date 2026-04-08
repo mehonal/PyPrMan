@@ -52,6 +52,44 @@ def list_sprints():
     )
 
 
+@sprints_bp.route("/project/<key>")
+@auth_required()
+def project_sprints(key):
+    project = Project.query.filter_by(key=key.upper()).first_or_404()
+    membership = ProjectMembership.query.filter_by(
+        user_id=current_user.id, project_id=project.id
+    ).first()
+    if not membership:
+        abort(403)
+
+    sprints = (
+        Sprint.query.join(SprintProject)
+        .filter(SprintProject.project_id == project.id)
+        .options(
+            db.selectinload(Sprint.sprint_projects).joinedload(SprintProject.project),
+            db.selectinload(Sprint.work_items).joinedload(WorkItem.status),
+        )
+        .order_by(Sprint.start_date.desc().nullslast(), Sprint.id.desc())
+        .all()
+    )
+    completed_sprints = [
+        s for s in sprints if s.completed_sp_snapshot is not None
+    ][:5]
+    avg_velocity = None
+    if completed_sprints:
+        avg_velocity = round(
+            sum(s.completed_sp_snapshot for s in completed_sprints)
+            / len(completed_sprints)
+        )
+    return render_template(
+        "sprints/list.html",
+        sprints=sprints,
+        avg_velocity=avg_velocity,
+        velocity_sprint_count=len(completed_sprints),
+        project=project,
+    )
+
+
 @sprints_bp.route("/<int:sprint_id>/detail")
 @auth_required()
 def sprint_detail(sprint_id):
@@ -231,4 +269,29 @@ def complete_sprint(sprint_id):
     sprint.is_active = False
     db.session.commit()
     flash("Sprint completed.", "success")
+    return redirect(url_for("sprints.list_sprints"))
+
+
+@sprints_bp.route("/<int:sprint_id>/delete", methods=["POST"])
+@auth_required()
+def delete_sprint(sprint_id):
+    sprint = Sprint.query.get_or_404(sprint_id)
+    sprint_project_ids = [sp.project_id for sp in sprint.sprint_projects]
+    user_memberships = ProjectMembership.query.filter(
+        ProjectMembership.user_id == current_user.id,
+        ProjectMembership.project_id.in_(sprint_project_ids),
+    ).all()
+    if not user_memberships:
+        abort(403)
+    if not any(m.role in ("owner", "admin") for m in user_memberships):
+        flash("Only project admins can delete sprints.", "danger")
+        return redirect(url_for("sprints.list_sprints"))
+
+    # Unassign all items from this sprint
+    WorkItem.query.filter_by(sprint_id=sprint.id).update({"sprint_id": None})
+    # Clean up sprint-project associations and the sprint itself
+    SprintProject.query.filter_by(sprint_id=sprint.id).delete()
+    db.session.delete(sprint)
+    db.session.commit()
+    flash("Sprint deleted. Items have been moved to backlog.", "success")
     return redirect(url_for("sprints.list_sprints"))

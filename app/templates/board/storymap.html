@@ -1,19 +1,36 @@
 {% extends "base.html" %}
-{% block title %}Story Map - {{ project.key }} - PyPrMan{% endblock %}
+{% block title %}{% if project %}Story Map - {{ project.key }}{% else %}Story Map{% endif %} - PyPrMan{% endblock %}
 {% block breadcrumb %}
 <ol class="breadcrumb mb-0">
     <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+    {% if project %}
     <li class="breadcrumb-item"><a href="{{ url_for('projects.detail', key=project.key) }}">{{ project.key }}</a></li>
     <li class="breadcrumb-item active">Story Map</li>
+    {% else %}
+    <li class="breadcrumb-item active">Story Map</li>
+    {% endif %}
 </ol>
 {% endblock %}
 {% block actions %}
+{% if is_aggregated and projects %}
+<div class="pp-filter-wrap">
+    <i class="bi bi-folder pp-filter-icon{% if filter_project_id %} active{% endif %}" title="Filter by project"></i>
+    <select class="pp-select pp-filter-select" onchange="location.href='?project_id='+this.value">
+        <option value="">All Projects</option>
+        {% for p in projects %}
+        <option value="{{ p.id }}" {% if filter_project_id == p.id %}selected{% endif %}>{{ p.key }} - {{ p.name }}</option>
+        {% endfor %}
+    </select>
+</div>
+{% endif %}
+{% if project %}
 <a href="{{ url_for('board.project_board', key=project.key) }}" class="pp-btn pp-btn-secondary pp-btn-sm">
     <i class="bi bi-kanban"></i><span class="d-none d-sm-inline"> Board</span>
 </a>
 <button class="pp-btn pp-btn-primary pp-btn-sm" onclick="ppModal.createItem('{{ project.key }}')">
     <i class="bi bi-plus-lg"></i> New Item
 </button>
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -32,6 +49,9 @@
                 <th class="storymap-header">
                     <span class="pp-status-dot" style="background:{{ epic.color }}; width:10px; height:10px;"></span>
                     {{ epic.name }}
+                    {% if is_aggregated and epic.project %}
+                    <span class="pp-badge-key" style="font-size:0.5625rem; margin-left:2px;">{{ epic.project.key }}</span>
+                    {% endif %}
                 </th>
                 {% endfor %}
                 <th class="storymap-header storymap-header--noepic">No Epic</th>
@@ -47,7 +67,7 @@
                 {% for epic in epics %}
                 <td class="storymap-cell">
                     {% for item in grid.get((epic.id, label.id), []) %}
-                    <a href="{{ url_for('work_items.detail', key=project.key, item_key=item.item_key) }}" class="storymap-card">
+                    <a href="{{ url_for('work_items.detail', key=item.project.key, item_key=item.item_key) }}" class="storymap-card">
                         <span class="storymap-card-key">{{ item.item_key }}</span>
                         <span class="storymap-card-title">{{ item.title }}</span>
                         <span class="storymap-card-meta">
@@ -60,7 +80,7 @@
                 {% endfor %}
                 <td class="storymap-cell">
                     {% for item in grid.get((0, label.id), []) %}
-                    <a href="{{ url_for('work_items.detail', key=project.key, item_key=item.item_key) }}" class="storymap-card">
+                    <a href="{{ url_for('work_items.detail', key=item.project.key, item_key=item.item_key) }}" class="storymap-card">
                         <span class="storymap-card-key">{{ item.item_key }}</span>
                         <span class="storymap-card-title">{{ item.title }}</span>
                         <span class="storymap-card-meta">
@@ -77,7 +97,7 @@
                 {% for epic in epics %}
                 <td class="storymap-cell">
                     {% for item in grid.get((epic.id, 0), []) %}
-                    <a href="{{ url_for('work_items.detail', key=project.key, item_key=item.item_key) }}" class="storymap-card">
+                    <a href="{{ url_for('work_items.detail', key=item.project.key, item_key=item.item_key) }}" class="storymap-card">
                         <span class="storymap-card-key">{{ item.item_key }}</span>
                         <span class="storymap-card-title">{{ item.title }}</span>
                         <span class="storymap-card-meta">
@@ -90,7 +110,7 @@
                 {% endfor %}
                 <td class="storymap-cell">
                     {% for item in grid.get((0, 0), []) %}
-                    <a href="{{ url_for('work_items.detail', key=project.key, item_key=item.item_key) }}" class="storymap-card">
+                    <a href="{{ url_for('work_items.detail', key=item.project.key, item_key=item.item_key) }}" class="storymap-card">
                         <span class="storymap-card-key">{{ item.item_key }}</span>
                         <span class="storymap-card-title">{{ item.title }}</span>
                         <span class="storymap-card-meta">

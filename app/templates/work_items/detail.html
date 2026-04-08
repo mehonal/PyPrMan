@@ -69,42 +69,83 @@
             </div>
         </div>
 
+        <div class="pp-card mb-4" id="links-section">
+            <div class="pp-card-header">
+                Links
+                <button class="pp-btn pp-btn-ghost pp-btn-sm" style="margin-left:auto;" onclick="ppLinks.showAdd()" title="Add link">
+                    <i class="bi bi-plus-lg"></i>
+                </button>
+            </div>
+            <div class="pp-card-body p-0">
+                <div id="links-list"></div>
+                <div id="no-links-msg" class="pp-empty" style="padding:24px; display:none;">
+                    <p style="margin:0; font-size:0.8125rem;">No links yet.</p>
+                </div>
+            </div>
+            <div id="link-add-form" style="display:none; padding:12px 16px; border-top:1px solid var(--pp-border);">
+                <div class="d-flex gap-2 align-items-end flex-wrap">
+                    <div>
+                        <label class="pp-form-label" style="font-size:0.6875rem;">Relationship</label>
+                        <select class="pp-select" id="link-type" style="font-size:0.8125rem; min-width:140px;">
+                            <option value="relates_to">relates to</option>
+                            <option value="blocks">blocks</option>
+                            <option value="is_blocked_by">is blocked by</option>
+                            <option value="duplicates">duplicates</option>
+                            <option value="is_duplicated_by">is duplicated by</option>
+                        </select>
+                    </div>
+                    <div style="flex:1; position:relative;">
+                        <label class="pp-form-label" style="font-size:0.6875rem;">Search item</label>
+                        <input type="text" class="pp-input" id="link-target" placeholder="Type to search..." autocomplete="off" style="font-size:0.8125rem;">
+                        <input type="hidden" id="link-target-key">
+                        <div id="link-autocomplete" class="pp-quick-dropdown" style="display:none;"></div>
+                    </div>
+                    <button class="pp-btn pp-btn-primary pp-btn-sm" onclick="ppLinks.add()">Add</button>
+                    <button class="pp-btn pp-btn-ghost pp-btn-sm" onclick="ppLinks.hideAdd()">Cancel</button>
+                </div>
+                <div id="link-error" style="display:none; color:var(--pp-danger); font-size:0.75rem; margin-top:4px;"></div>
+            </div>
+        </div>
+
         <div class="pp-card mb-4" id="comments-section">
             <div class="pp-card-header">Comments</div>
             <div class="pp-card-body">
                 <div id="comments-list">
                     {% for comment in item.comments %}
                     <div class="pp-comment" id="comment-{{ comment.id }}">
-                        <div class="pp-comment-header">
-                            <strong style="font-size:0.8125rem;">{{ comment.author.display_name }}</strong>
-                            <div class="d-flex align-items-center gap-2">
-                                <span style="color:var(--pp-text-muted); font-size:0.75rem;">{{ comment.created_at.strftime('%b %d, %Y %H:%M') }}</span>
+                        <div class="pp-comment-avatar">{{ comment.author.display_name[:2] }}</div>
+                        <div class="pp-comment-content">
+                            <div class="pp-comment-header">
+                                <span class="pp-comment-author">{{ comment.author.display_name }}</span>
+                                <span class="pp-comment-time">{{ comment.created_at.strftime('%b %d, %Y %H:%M') }}</span>
                                 {% if comment.author_id == current_user.id %}
-                                <button data-delete-comment="{{ comment.id }}" class="pp-btn pp-btn-ghost pp-btn-sm" style="padding:2px 6px; color:var(--pp-danger);" title="Delete">
-                                    <i class="bi bi-trash" style="font-size:0.75rem;"></i>
+                                <button data-delete-comment="{{ comment.id }}" class="pp-btn pp-btn-ghost pp-btn-sm" style="padding:2px 4px; color:var(--pp-danger); margin-left:auto;" title="Delete">
+                                    <i class="bi bi-trash" style="font-size:0.6875rem;"></i>
                                 </button>
                                 {% endif %}
                             </div>
+                            <div class="pp-comment-body">{{ comment.body }}</div>
                         </div>
-                        <p style="margin:0; white-space:pre-wrap; font-size:0.8125rem;">{{ comment.body }}</p>
                     </div>
                     {% endfor %}
                 </div>
                 {% if not item.comments %}
-                <p id="no-comments-msg" style="color:var(--pp-text-muted); font-size:0.8125rem; margin-bottom:16px;">No comments yet.</p>
+                <p id="no-comments-msg" style="color:var(--pp-text-muted); font-size:0.8125rem; margin-bottom:0;">No comments yet.</p>
                 {% endif %}
 
-                <form id="comment-form" style="margin-top:16px;">
-                    <div class="pp-form-group">
-                        <label for="body" class="visually-hidden">Add a comment</label>
-                        <textarea class="pp-input" id="body" name="body" rows="2" placeholder="Add a comment..." required></textarea>
-                    </div>
-                    <button type="submit" class="pp-btn pp-btn-primary pp-btn-sm">Comment</button>
-                </form>
+                <div class="pp-comment-form-wrap">
+                    <div class="pp-comment-avatar">{{ current_user.display_name[:2] }}</div>
+                    <form id="comment-form">
+                        <div class="pp-form-group" style="margin-bottom:8px;">
+                            <label for="body" class="visually-hidden">Add a comment</label>
+                            <textarea class="pp-input" id="body" name="body" rows="2" placeholder="Write a comment..." required style="font-size:0.8125rem;"></textarea>
+                        </div>
+                        <button type="submit" class="pp-btn pp-btn-primary pp-btn-sm">Comment</button>
+                    </form>
+                </div>
             </div>
         </div>
 
-        {% if item.activity_logs %}
         <div class="pp-card">
             <div class="pp-card-header">Activity</div>
             <div class="pp-card-body">
@@ -117,9 +158,11 @@
                     <span style="margin-left:8px; color:var(--pp-text-muted); font-size:0.75rem;">{{ log.created_at.strftime('%b %d, %Y %H:%M') }}</span>
                 </div>
                 {% endfor %}
+                {% if not item.activity_logs %}
+                <p style="color:var(--pp-text-muted); font-size:0.8125rem; margin:0;">No activity yet.</p>
+                {% endif %}
             </div>
         </div>
-        {% endif %}
     </div>
 
     <div class="col-md-4">
@@ -185,10 +228,15 @@
                     <dd style="margin-bottom:12px;"><a href="{{ url_for('epics.detail_epic', key=project.key, epic_id=item.epic.id) }}" style="text-decoration:none;"><span class="pp-badge" style="background:{{ item.epic.color }}; color:#fff;">{{ item.epic.name }}</span></a></dd>
                     {% endif %}
 
-                    {% if item.sprint %}
                     <dt style="color:var(--pp-text-muted); font-size:0.75rem; font-weight:500; margin-bottom:2px;">Sprint</dt>
-                    <dd style="margin-bottom:12px;">{{ item.sprint.name }}{% if item.sprint.is_active %} <span class="pp-badge pp-badge-primary" style="font-size:0.6875rem;">Active</span>{% endif %}</dd>
-                    {% endif %}
+                    <dd style="margin-bottom:12px;"
+                        data-inline-edit data-field="sprint_id" data-item-id="{{ item.id }}"
+                        data-current-value="{{ item.sprint_id or '' }}"
+                        data-options='[{"value":"","label":"None"}{% for sp in sprints %},{"value":{{ sp.id }},"label":"{{ sp.name }}{% if sp.is_active %} (Active){% endif %}"}{% endfor %}]'>
+                        <span class="pp-inline-value">
+                            <span class="pp-inline-text">{{ item.sprint.name if item.sprint else 'None' }}{% if item.sprint and item.sprint.is_active %} <span class="pp-badge pp-badge-primary" style="font-size:0.6875rem;">Active</span>{% endif %}</span>
+                        </span>
+                    </dd>
 
                     <dt style="color:var(--pp-text-muted); font-size:0.75rem; font-weight:500; margin-bottom:2px;">Due Date</dt>
                     <dd style="margin-bottom:12px;"
@@ -217,9 +265,13 @@
                                     <span class="pp-label-dot" style="background:{{ label.color }};"></span> {{ label.name }}
                                 </button>
                                 {% endfor %}
-                                {% if not project.labels %}
-                                <span style="font-size:0.75rem; color:var(--pp-text-muted); padding:8px;">No labels. Create them in project settings.</span>
-                                {% endif %}
+                                <div class="pp-label-create" style="border-top:1px solid var(--pp-border-light); padding:6px 8px; margin-top:4px;">
+                                    <div class="d-flex gap-1 align-items-center">
+                                        <input type="text" class="pp-input" id="new-label-name" placeholder="New label..." style="font-size:0.75rem; padding:3px 6px; flex:1; min-width:0;">
+                                        <input type="color" id="new-label-color" value="#6b7280" style="width:28px; height:24px; padding:0; border:1px solid var(--pp-border); border-radius:3px; cursor:pointer;">
+                                        <button class="pp-btn pp-btn-primary pp-btn-sm" onclick="ppLabels.create({{ item.id }}, '{{ project.key }}')" style="font-size:0.6875rem; padding:3px 8px;">Add</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </dd>
@@ -230,7 +282,13 @@
             </div>
         </div>
 
-        <div style="margin-top:12px;">
+        <div style="margin-top:12px; display:flex; flex-direction:column; gap:8px;">
+            <form method="POST" action="{{ url_for('work_items.duplicate_item', key=project.key, item_key=item.item_key) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="pp-btn pp-btn-secondary pp-btn-sm" style="width:100%;">
+                    <i class="bi bi-copy"></i> Duplicate
+                </button>
+            </form>
             <form method="POST" action="{{ url_for('work_items.delete_item', key=project.key, item_key=item.item_key) }}" onsubmit="return confirm('Delete this item?')">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="pp-btn pp-btn-danger pp-btn-sm" style="width:100%;">
@@ -246,5 +304,155 @@
 <script src="{{ url_for('static', filename='js/inline-edit.js') }}"></script>
 <script>
     ppComments.init({{ item.id }}, '{{ project.key }}', '{{ item.item_key }}');
+
+    var ppLinks = (function () {
+        var itemId = {{ item.id }};
+        var searchTimer = null;
+
+        function load() {
+            api.get('/api/items/' + itemId + '/links').then(function (data) {
+                var list = document.getElementById('links-list');
+                var noMsg = document.getElementById('no-links-msg');
+                list.innerHTML = '';
+                if (!data.links.length) {
+                    noMsg.style.display = '';
+                    return;
+                }
+                noMsg.style.display = 'none';
+                data.links.forEach(function (link) {
+                    var div = document.createElement('a');
+                    div.className = 'pp-list-item';
+                    div.href = '/projects/' + link.item.project_key + '/items/' + link.item.item_key;
+                    div.style.cssText = 'font-size:0.8125rem; text-decoration:none; color:inherit;';
+                    div.innerHTML =
+                        '<span style="color:var(--pp-text-muted); min-width:100px; font-size:0.75rem;">' + escapeHtml(link.label) + '</span>' +
+                        '<span class="item-key" style="min-width:60px;">' + escapeHtml(link.item.item_key) + '</span>' +
+                        '<span class="item-title">' + escapeHtml(link.item.title) + '</span>' +
+                        '<button class="pp-btn pp-btn-ghost pp-btn-sm pp-link-remove" data-link-id="' + link.id + '" style="margin-left:auto; padding:2px 6px; color:var(--pp-danger);" title="Remove">' +
+                        '<i class="bi bi-x-lg" style="font-size:0.625rem;"></i></button>';
+                    list.appendChild(div);
+                });
+                list.querySelectorAll('.pp-link-remove').forEach(function (btn) {
+                    btn.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        remove(btn.dataset.linkId);
+                    });
+                });
+            });
+        }
+
+        function showAdd() {
+            document.getElementById('link-add-form').style.display = '';
+            document.getElementById('link-target').value = '';
+            document.getElementById('link-target-key').value = '';
+            document.getElementById('link-target').focus();
+        }
+
+        function hideAdd() {
+            document.getElementById('link-add-form').style.display = 'none';
+            document.getElementById('link-error').style.display = 'none';
+            document.getElementById('link-autocomplete').style.display = 'none';
+        }
+
+        // Autocomplete
+        var targetInput = document.getElementById('link-target');
+        var targetKey = document.getElementById('link-target-key');
+        var acList = document.getElementById('link-autocomplete');
+
+        function positionAcList() {
+            var rect = targetInput.getBoundingClientRect();
+            acList.style.position = 'fixed';
+            acList.style.zIndex = '1100';
+            acList.style.left = rect.left + 'px';
+            acList.style.width = rect.width + 'px';
+            var top = rect.bottom + 2;
+            if (top + 220 > window.innerHeight) top = rect.top - 220;
+            if (top < 8) top = 8;
+            acList.style.top = top + 'px';
+        }
+
+        if (targetInput) {
+            targetInput.addEventListener('input', function () {
+                clearTimeout(searchTimer);
+                var q = targetInput.value.trim();
+                targetKey.value = '';
+                if (q.length < 2) { acList.style.display = 'none'; return; }
+                searchTimer = setTimeout(function () {
+                    api.get('/api/search?q=' + encodeURIComponent(q)).then(function (data) {
+                        acList.innerHTML = '';
+                        var results = data.results.filter(function (r) { return r.id !== itemId; });
+                        if (!results.length) {
+                            acList.style.display = 'none';
+                            return;
+                        }
+                        results.forEach(function (r) {
+                            var row = document.createElement('div');
+                            row.className = 'pp-quick-option';
+                            row.innerHTML = '<span style="font-family:var(--pp-font-mono); font-size:0.75rem; color:var(--pp-text-muted); min-width:60px;">' + escapeHtml(r.item_key) + '</span> ' + escapeHtml(r.title);
+                            row.addEventListener('click', function () {
+                                targetInput.value = r.item_key + ' \u2014 ' + r.title;
+                                targetKey.value = r.item_key;
+                                acList.style.display = 'none';
+                            });
+                            acList.appendChild(row);
+                        });
+                        // Move to body and position fixed
+                        if (acList.parentNode !== document.body) document.body.appendChild(acList);
+                        positionAcList();
+                        acList.style.display = '';
+                    });
+                }, 200);
+            });
+
+            targetInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') acList.style.display = 'none';
+            });
+
+            document.addEventListener('click', function (e) {
+                if (!e.target.closest('#link-add-form')) acList.style.display = 'none';
+            });
+        }
+
+        function add() {
+            var linkType = document.getElementById('link-type').value;
+            var key = targetKey.value || targetInput.value.trim();
+            var errorEl = document.getElementById('link-error');
+            if (!key) return;
+
+            api.post('/api/items/' + itemId + '/links', {
+                link_type: linkType,
+                target_key: key,
+            }).then(function (res) {
+                if (res.ok) {
+                    targetInput.value = '';
+                    targetKey.value = '';
+                    hideAdd();
+                    load();
+                } else {
+                    errorEl.textContent = res.error || 'Failed to add link';
+                    errorEl.style.display = '';
+                }
+            }).catch(function (err) {
+                errorEl.textContent = err.message || 'Failed to add link';
+                errorEl.style.display = '';
+            });
+        }
+
+        function remove(linkId) {
+            api.del('/api/items/' + itemId + '/links/' + linkId).then(function (res) {
+                if (res.ok) load();
+            });
+        }
+
+        function escapeHtml(str) {
+            var div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        load();
+        return { showAdd: showAdd, hideAdd: hideAdd, add: add };
+    })();
 </script>
 {% endblock %}

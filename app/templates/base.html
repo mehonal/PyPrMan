@@ -42,6 +42,12 @@
                 <a href="{{ url_for('sprints.list_sprints') }}" class="pp-nav-link {% if request.endpoint == 'sprints.list_sprints' %}active{% endif %}">
                     <i class="bi bi-lightning"></i> Sprints
                 </a>
+                <a href="{{ url_for('epics.aggregated_epics') }}" class="pp-nav-link {% if request.endpoint == 'epics.aggregated_epics' %}active{% endif %}">
+                    <i class="bi bi-collection"></i> Epics
+                </a>
+                <a href="{{ url_for('board.aggregated_story_map') }}" class="pp-nav-link {% if request.endpoint == 'board.aggregated_story_map' %}active{% endif %}">
+                    <i class="bi bi-map"></i> Story Map
+                </a>
 
                 <div class="pp-sidebar-section">
                     Projects
@@ -62,7 +68,7 @@
                         <a href="{{ url_for('backlog.project_backlog', key=project.key) }}"><i class="bi bi-list-task me-1" style="font-size:0.75rem;"></i>Backlog</a>
                         <a href="{{ url_for('epics.list_epics', key=project.key) }}"><i class="bi bi-collection me-1" style="font-size:0.75rem;"></i>Epics</a>
                         <a href="{{ url_for('board.story_map', key=project.key) }}"><i class="bi bi-map me-1" style="font-size:0.75rem;"></i>Story Map</a>
-                        <a href="{{ url_for('sprints.list_sprints') }}"><i class="bi bi-lightning me-1" style="font-size:0.75rem;"></i>Sprints</a>
+                        <a href="{{ url_for('sprints.project_sprints', key=project.key) }}"><i class="bi bi-lightning me-1" style="font-size:0.75rem;"></i>Sprints</a>
                         <a href="{{ url_for('settings.manage_statuses', key=project.key) }}"><i class="bi bi-gear me-1" style="font-size:0.75rem;"></i>Settings</a>
                     </div>
                 </div>

@@ -33,6 +33,12 @@
         <div class="pp-form-group">
             <label class="pp-form-label">Projects</label>
             <small style="display:block; color:var(--pp-text-muted); font-size:0.75rem; margin-bottom:8px;">Select which projects this sprint belongs to.</small>
+            {% if projects|length > 1 %}
+            <div class="form-check" style="margin-bottom:8px; border-bottom:1px solid var(--pp-border-light); padding-bottom:6px;">
+                <input class="form-check-input" type="checkbox" id="selectAllProjects" onchange="document.querySelectorAll('input[name=project_ids]').forEach(function(cb){cb.checked=this.checked}.bind(this))">
+                <label class="form-check-label" for="selectAllProjects" style="font-size:0.875rem; font-weight:600;">Select All</label>
+            </div>
+            {% endif %}
             {% for p in projects %}
             <div class="form-check" style="margin-bottom:6px;">
                 <input class="form-check-input" type="checkbox" name="project_ids" value="{{ p.id }}" id="proj_{{ p.id }}"

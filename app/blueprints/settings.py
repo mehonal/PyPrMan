@@ -5,6 +5,7 @@ from app.extensions import db
 from app.models.item_type import ItemType
 from app.models.label import Label
 from app.models.project import Project, ProjectMembership
+from app.models.sprint import Sprint, SprintProject
 from app.models.status import Status
 from app.models.user import User
 from app.validation import validate_hex_color, validate_icon_class, validate_status_category
@@ -238,3 +239,67 @@ def manage_labels(key):
 
     labels = Label.query.filter_by(project_id=project.id).all()
     return render_template("settings/labels.html", project=project, labels=labels)
+
+
+@settings_bp.route("/sprints", methods=["GET", "POST"])
+@auth_required()
+def manage_sprints(key):
+    project = _get_project_admin(key)
+
+    if request.method == "POST":
+        action = request.form.get("action")
+
+        if action == "add":
+            sprint_ids = request.form.getlist("sprint_ids", type=int)
+            for sid in sprint_ids:
+                sprint = Sprint.query.get(sid)
+                if not sprint:
+                    continue
+                existing = SprintProject.query.filter_by(
+                    sprint_id=sid, project_id=project.id
+                ).first()
+                if not existing:
+                    db.session.add(SprintProject(sprint_id=sid, project_id=project.id))
+            db.session.commit()
+            flash("Sprints updated.", "success")
+
+        elif action == "remove":
+            sprint_id = request.form.get("sprint_id", type=int)
+            sp = SprintProject.query.filter_by(
+                sprint_id=sprint_id, project_id=project.id
+            ).first()
+            if sp:
+                db.session.delete(sp)
+                db.session.commit()
+                flash("Sprint removed from project.", "success")
+
+        return redirect(url_for("settings.manage_sprints", key=key))
+
+    # Current sprints for this project
+    current_sprint_projects = (
+        SprintProject.query.filter_by(project_id=project.id)
+        .options(db.joinedload(SprintProject.sprint))
+        .all()
+    )
+    current_sprint_ids = {sp.sprint_id for sp in current_sprint_projects}
+
+    # All sprints the user has access to (for adding)
+    user_project_ids = [
+        m.project_id
+        for m in ProjectMembership.query.filter_by(user_id=current_user.id).all()
+    ]
+    all_sprints = (
+        Sprint.query.join(SprintProject)
+        .filter(SprintProject.project_id.in_(user_project_ids))
+        .distinct()
+        .order_by(Sprint.start_date.desc().nullslast(), Sprint.id.desc())
+        .all()
+    )
+    available_sprints = [s for s in all_sprints if s.id not in current_sprint_ids]
+
+    return render_template(
+        "settings/sprints.html",
+        project=project,
+        current_sprint_projects=current_sprint_projects,
+        available_sprints=available_sprints,
+    )

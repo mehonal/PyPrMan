@@ -91,12 +91,12 @@
                 <span class="item-title">{{ item.title }}</span>
                 <span class="item-meta">
                     <span class="pp-status-dot" style="background:{{ item.status.color }}" title="{{ item.status.name }}"></span>
-                    <span class="pp-priority-badge pp-priority-{{ item.priority }}" title="{{ item.priority }}">
+                    <span class="pp-priority-badge pp-priority-{{ item.priority }}" title="{{ item.priority }}" data-quick-priority data-item-id="{{ item.id }}" data-current="{{ item.priority }}">
                         <i class="{{ item.priority_icon }}"></i>
                     </span>
                     {% if item.epic %}<span class="pp-status-dot" style="background:{{ item.epic.color }}; width:8px; height:8px;" title="{{ item.epic.name }}"></span>{% endif %}
                     <span class="pp-sp-badge" data-sp-edit data-item-id="{{ item.id }}" data-sp="{{ item.story_points if item.story_points is not none else '' }}" title="Story points">{{ item.story_points if item.story_points is not none else '—' }}</span>
-                    {% if item.assignee %}<span class="pp-badge pp-badge-muted">{{ item.assignee.display_name[:8] }}</span>{% endif %}
+                    <span class="pp-badge pp-badge-muted pp-quick-assignee" data-quick-assignee data-item-id="{{ item.id }}" data-project-key="{{ item.project.key }}" data-current="{{ item.assignee_id or '' }}">{{ item.assignee.display_name[:8] if item.assignee else '—' }}</span>
                 </span>
             </a>
         </div>
@@ -129,12 +129,12 @@
                 <span class="item-title">{{ item.title }}</span>
                 <span class="item-meta">
                     <span class="pp-status-dot" style="background:{{ item.status.color }}" title="{{ item.status.name }}"></span>
-                    <span class="pp-priority-badge pp-priority-{{ item.priority }}" title="{{ item.priority }}">
+                    <span class="pp-priority-badge pp-priority-{{ item.priority }}" title="{{ item.priority }}" data-quick-priority data-item-id="{{ item.id }}" data-current="{{ item.priority }}">
                         <i class="{{ item.priority_icon }}"></i>
                     </span>
                     {% if item.epic %}<span class="pp-status-dot" style="background:{{ item.epic.color }}; width:8px; height:8px;" title="{{ item.epic.name }}"></span>{% endif %}
                     <span class="pp-sp-badge" data-sp-edit data-item-id="{{ item.id }}" data-sp="{{ item.story_points if item.story_points is not none else '' }}" title="Story points">{{ item.story_points if item.story_points is not none else '—' }}</span>
-                    {% if item.assignee %}<span class="pp-badge pp-badge-muted">{{ item.assignee.display_name[:8] }}</span>{% endif %}
+                    <span class="pp-badge pp-badge-muted pp-quick-assignee" data-quick-assignee data-item-id="{{ item.id }}" data-project-key="{{ item.project.key }}" data-current="{{ item.assignee_id or '' }}">{{ item.assignee.display_name[:8] if item.assignee else '—' }}</span>
                 </span>
             </a>
         </div>

@@ -145,6 +145,7 @@ def detail(key, item_key):
         project=project,
         item=item,
         members=members,
+        sprints=_get_sprints_for_project(project),
         today=date.today(),
     )
 
@@ -180,6 +181,16 @@ def edit_item(key, item_key):
                 new_status.name if new_status else "",
             )
 
+        if new_sprint_id != item.sprint_id:
+            old_sprint = item.sprint
+            new_sprint = Sprint.query.get(new_sprint_id) if new_sprint_id else None
+            _log_change(
+                item,
+                "sprint",
+                old_sprint.name if old_sprint else "None",
+                new_sprint.name if new_sprint else "None",
+            )
+
         new_story_points = request.form.get("story_points", type=int)
 
         item.title = new_title
@@ -206,6 +217,36 @@ def edit_item(key, item_key):
         members=_get_members(project),
         parent_id=item.parent_id,
     )
+
+
+@work_items_bp.route("/<item_key>/duplicate", methods=["POST"])
+@auth_required()
+def duplicate_item(key, item_key):
+    project = _get_project(key)
+    item = WorkItem.query.filter_by(item_key=item_key.upper(), project_id=project.id).first_or_404()
+    new_item = WorkItem(
+        project_id=item.project_id,
+        item_type_id=item.item_type_id,
+        status_id=item.status_id,
+        epic_id=item.epic_id,
+        sprint_id=item.sprint_id,
+        parent_id=item.parent_id,
+        assignee_id=item.assignee_id,
+        reporter_id=current_user.id,
+        title="[Copy] " + item.title,
+        description=item.description,
+        priority=item.priority,
+        story_points=item.story_points,
+        item_key=project.next_item_key(),
+        due_date=item.due_date,
+    )
+    db.session.add(new_item)
+    # Copy labels
+    for label in item.labels:
+        new_item.labels.append(label)
+    db.session.commit()
+    flash("Item duplicated.", "success")
+    return redirect(url_for("work_items.detail", key=key, item_key=new_item.item_key))
 
 
 @work_items_bp.route("/<item_key>/delete", methods=["POST"])

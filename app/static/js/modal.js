@@ -147,6 +147,12 @@ var ppModal = {
                 }).join('') +
                 '</select></div></div>' +
                 '</div>' +
+                '<div class="row g-3">' +
+                '<div class="col-md-4"><div class="pp-form-group">' +
+                '<label class="pp-form-label">Story Points</label>' +
+                '<input type="number" class="pp-input" id="modalItemSP" min="0" placeholder="">' +
+                '</div></div>' +
+                '</div>' +
                 '<div class="pp-form-group">' +
                 '<label class="pp-form-label">Description</label>' +
                 '<textarea class="pp-input" id="modalItemDesc" rows="3"></textarea>' +
@@ -169,7 +175,8 @@ var ppModal = {
                         epic_id: parseInt(document.getElementById('modalItemEpic').value) || null,
                         sprint_id: parseInt(document.getElementById('modalItemSprint').value) || null,
                         assignee_id: parseInt(document.getElementById('modalItemAssignee').value) || null,
-                        description: document.getElementById('modalItemDesc').value.trim()
+                        description: document.getElementById('modalItemDesc').value.trim(),
+                        story_points: document.getElementById('modalItemSP').value ? parseInt(document.getElementById('modalItemSP').value) : null
                     };
                     var parentEl = document.getElementById('modalItemParent');
                     if (parentEl) payload.parent_id = parseInt(parentEl.value);

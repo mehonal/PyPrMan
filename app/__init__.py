@@ -67,7 +67,7 @@ def create_app(config_name=None):
             memberships = ProjectMembership.query.filter_by(
                 user_id=current_user.id
             ).all()
-            projects = [m.project for m in memberships]
+            projects = sorted([m.project for m in memberships], key=lambda p: p.name.lower())
 
             active_project = None
             from flask import request

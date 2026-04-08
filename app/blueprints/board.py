@@ -62,12 +62,8 @@ def project_board(key):
         db.joinedload(WorkItem.labels),
     ).order_by(WorkItem.position).all()
 
-    hide_backlog = request.args.get("hide_backlog", "1") == "1"
-
     columns = {}
     for s in statuses:
-        if hide_backlog and s.category == "backlog":
-            continue
         columns[s.id] = {
             "status": s,
             "work_items": [i for i in items if i.status_id == s.id],
@@ -89,7 +85,6 @@ def project_board(key):
         filter_epic_id=filter_epic_id,
         labels=labels,
         filter_label_id=filter_label_id,
-        hide_backlog=hide_backlog,
         today=date.today(),
     )
 
@@ -145,15 +140,11 @@ def aggregated_board():
         db.joinedload(WorkItem.labels),
     ).order_by(WorkItem.position).all()
 
-    hide_backlog = request.args.get("hide_backlog", "1") == "1"
-
-    category_order = ["backlog", "todo", "in_progress", "done"]
+    category_order = ["todo", "in_progress", "done"]
     seen_categories = {}
     columns = {}
     for s in all_statuses:
         cat = s.category
-        if hide_backlog and cat == "backlog":
-            continue
         if cat not in seen_categories:
             seen_categories[cat] = s
             columns[cat] = {
@@ -191,7 +182,6 @@ def aggregated_board():
         filter_epic_id=filter_epic_id,
         labels=labels,
         filter_label_id=filter_label_id,
-        hide_backlog=hide_backlog,
         today=date.today(),
     )
 
@@ -238,6 +228,64 @@ def story_map(key):
         epics=epics,
         labels=labels,
         grid=grid,
+        is_aggregated=False,
+    )
+
+
+@board_bp.route("/storymap")
+@auth_required()
+def aggregated_story_map():
+    project_ids = _user_project_ids()
+    projects = Project.query.filter(Project.id.in_(project_ids)).all()
+
+    filter_project_id = request.args.get("project_id", type=int)
+    if filter_project_id and filter_project_id in project_ids:
+        filtered_ids = [filter_project_id]
+    else:
+        filtered_ids = project_ids
+
+    epics = (
+        Epic.query.filter(Epic.project_id.in_(filtered_ids))
+        .order_by(Epic.position, Epic.name)
+        .all()
+    )
+    labels = (
+        Label.query.filter(Label.project_id.in_(filtered_ids))
+        .order_by(Label.name)
+        .all()
+    )
+    items = (
+        WorkItem.query.filter(WorkItem.project_id.in_(filtered_ids))
+        .options(
+            db.joinedload(WorkItem.labels),
+            db.joinedload(WorkItem.epic),
+            db.joinedload(WorkItem.project),
+        )
+        .order_by(WorkItem.position)
+        .all()
+    )
+
+    grid = {}
+    for item in items:
+        epic_id = item.epic_id or 0
+        item_labels = item.labels if item.labels else []
+        if item_labels:
+            for label in item_labels:
+                key_pair = (epic_id, label.id)
+                grid.setdefault(key_pair, []).append(item)
+        else:
+            key_pair = (epic_id, 0)
+            grid.setdefault(key_pair, []).append(item)
+
+    return render_template(
+        "board/storymap.html",
+        project=None,
+        projects=projects,
+        epics=epics,
+        labels=labels,
+        grid=grid,
+        is_aggregated=True,
+        filter_project_id=filter_project_id,
     )
 
 
@@ -283,6 +331,19 @@ def move_item():
 
     item.status_id = new_status.id
     item.position = new_position
+
+    # Re-index all siblings in the target column so positions are contiguous
+    sibling_ids = data.get("sibling_ids")
+    if sibling_ids:
+        siblings = WorkItem.query.filter(
+            WorkItem.id.in_(sibling_ids),
+            WorkItem.project_id == item.project_id,
+        ).all()
+        sibling_map = {s.id: s for s in siblings}
+        for idx, sid in enumerate(sibling_ids):
+            if sid in sibling_map:
+                sibling_map[sid].position = idx
+
     db.session.commit()
 
     return jsonify({"ok": True})

@@ -11,6 +11,12 @@
 <a href="{{ url_for('sprints.edit_sprint', sprint_id=sprint.id) }}" class="pp-btn pp-btn-secondary pp-btn-sm">
     <i class="bi bi-pencil"></i> Edit
 </a>
+<form method="POST" action="{{ url_for('sprints.delete_sprint', sprint_id=sprint.id) }}" class="d-inline" onsubmit="return confirm('Delete &quot;{{ sprint.name }}&quot;?{% if items|length %} {{ items|length }} item(s) will be moved to backlog.{% endif %}');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="pp-btn pp-btn-danger pp-btn-sm">
+        <i class="bi bi-trash"></i> Delete
+    </button>
+</form>
 {% endblock %}
 
 {% block content %}

@@ -1,9 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Sprints - PyPrMan{% endblock %}
+{% block title %}{% if project %}Sprints - {{ project.key }}{% else %}Sprints{% endif %} - PyPrMan{% endblock %}
 {% block breadcrumb %}
 <ol class="breadcrumb mb-0">
     <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+    {% if project %}
+    <li class="breadcrumb-item"><a href="{{ url_for('projects.detail', key=project.key) }}">{{ project.key }}</a></li>
     <li class="breadcrumb-item active">Sprints</li>
+    {% else %}
+    <li class="breadcrumb-item active">Sprints</li>
+    {% endif %}
 </ol>
 {% endblock %}
 {% block actions %}
@@ -73,6 +78,12 @@
                 <a href="{{ url_for('sprints.edit_sprint', sprint_id=sprint.id) }}" class="pp-btn pp-btn-ghost pp-btn-sm">
                     <i class="bi bi-pencil"></i>
                 </a>
+                <form method="POST" action="{{ url_for('sprints.delete_sprint', sprint_id=sprint.id) }}" class="d-inline" onsubmit="return confirm('Delete &quot;{{ sprint.name }}&quot;?{% if sprint.work_items|length %} {{ sprint.work_items|length }} item(s) will be moved to backlog.{% endif %}');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="pp-btn pp-btn-ghost pp-btn-sm" style="color:var(--pp-danger, #dc2626);" title="Delete sprint">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
             </div>
         </div>
     </div>

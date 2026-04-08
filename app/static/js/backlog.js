@@ -122,17 +122,19 @@
 
         var siblings = container.querySelectorAll('.pp-list-item[data-item-id]');
         var position = 0;
+        var siblingIds = [];
         for (var i = 0; i < siblings.length; i++) {
+            siblingIds.push(parseInt(siblings[i].dataset.itemId));
             if (siblings[i] === dragItem) {
                 position = i;
-                break;
             }
         }
 
         api.post('/backlog/reorder', {
             item_id: parseInt(dragItem.dataset.itemId),
             position: position,
-            sprint_id: sprintId ? parseInt(sprintId) : null
+            sprint_id: sprintId ? parseInt(sprintId) : null,
+            sibling_ids: siblingIds
         }).catch(function (err) {
             console.error('Reorder failed:', err);
         });

@@ -44,11 +44,10 @@ class Project(db.Model):
         from app.models.status import Status
 
         defaults = [
-            ("Backlog", "backlog", "#6b7280", 0),
-            ("To Do", "todo", "#3b82f6", 1),
-            ("In Progress", "in_progress", "#f59e0b", 2),
-            ("In Review", "in_progress", "#8b5cf6", 3),
-            ("Done", "done", "#10b981", 4),
+            ("To Do", "todo", "#3b82f6", 0),
+            ("In Progress", "in_progress", "#f59e0b", 1),
+            ("In Review", "in_progress", "#8b5cf6", 2),
+            ("Done", "done", "#10b981", 3),
         ]
         for name, category, color, position in defaults:
             status = Status(

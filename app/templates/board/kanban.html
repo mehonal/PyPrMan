@@ -12,16 +12,13 @@
 </ol>
 {% endblock %}
 {% block actions %}
-<button class="pp-btn {% if not hide_backlog %}pp-btn-primary{% else %}pp-btn-secondary{% endif %} pp-btn-sm" onclick="location.href='?hide_backlog={{ '0' if hide_backlog else '1' }}&amp;sprint_filter={{ '1' if sprint_filter_active else '0' }}{% if is_aggregated and filter_project_id %}&amp;project_id={{ filter_project_id }}{% endif %}{% if filter_epic_id %}&amp;epic_id={{ filter_epic_id }}{% endif %}'" title="{% if hide_backlog %}Backlog column hidden{% else %}Backlog column shown{% endif %}">
-    <i class="bi bi-inbox"></i><span class="d-none d-sm-inline"> Backlog</span>
-</button>
-<button class="pp-btn {% if sprint_filter_active %}pp-btn-primary{% else %}pp-btn-secondary{% endif %} pp-btn-sm" onclick="location.href='?sprint_filter={{ '0' if sprint_filter_active else '1' }}&amp;hide_backlog={{ '0' if hide_backlog else '1' }}{% if is_aggregated and filter_project_id %}&amp;project_id={{ filter_project_id }}{% endif %}{% if filter_epic_id %}&amp;epic_id={{ filter_epic_id }}{% endif %}'" title="{% if sprint_filter_active %}Showing current sprint only{% else %}Showing all items{% endif %}">
+<button class="pp-btn {% if sprint_filter_active %}pp-btn-primary{% else %}pp-btn-secondary{% endif %} pp-btn-sm" onclick="location.href='?sprint_filter={{ '0' if sprint_filter_active else '1' }}{% if is_aggregated and filter_project_id %}&amp;project_id={{ filter_project_id }}{% endif %}{% if filter_epic_id %}&amp;epic_id={{ filter_epic_id }}{% endif %}'" title="{% if sprint_filter_active %}Showing current sprint only{% else %}Showing all items{% endif %}">
     <i class="bi bi-lightning"></i><span class="d-none d-sm-inline"> Sprint</span>
 </button>
 {% if epics %}
 <div class="pp-filter-wrap">
     <i class="bi bi-collection pp-filter-icon{% if filter_epic_id %} active{% endif %}" title="Filter by epic"></i>
-    <select class="pp-select pp-filter-select" onchange="location.href='?epic_id='+this.value+'&amp;sprint_filter={{ '1' if sprint_filter_active else '0' }}&amp;hide_backlog={{ '0' if hide_backlog else '1' }}{% if is_aggregated and filter_project_id %}&amp;project_id={{ filter_project_id }}{% endif %}'">
+    <select class="pp-select pp-filter-select" onchange="location.href='?epic_id='+this.value+'&amp;sprint_filter={{ '1' if sprint_filter_active else '0' }}{% if is_aggregated and filter_project_id %}&amp;project_id={{ filter_project_id }}{% endif %}'">
         <option value="">All Epics</option>
         {% for epic in epics %}
         <option value="{{ epic.id }}" {% if filter_epic_id == epic.id %}selected{% endif %}>{{ epic.name }}</option>
@@ -32,7 +29,7 @@
 {% if labels %}
 <div class="pp-filter-wrap">
     <i class="bi bi-tag pp-filter-icon{% if filter_label_id %} active{% endif %}" title="Filter by label"></i>
-    <select class="pp-select pp-filter-select" onchange="location.href='?label_id='+this.value+'&amp;sprint_filter={{ '1' if sprint_filter_active else '0' }}&amp;hide_backlog={{ '0' if hide_backlog else '1' }}{% if filter_epic_id %}&amp;epic_id={{ filter_epic_id }}{% endif %}{% if is_aggregated and filter_project_id %}&amp;project_id={{ filter_project_id }}{% endif %}'">
+    <select class="pp-select pp-filter-select" onchange="location.href='?label_id='+this.value+'&amp;sprint_filter={{ '1' if sprint_filter_active else '0' }}{% if filter_epic_id %}&amp;epic_id={{ filter_epic_id }}{% endif %}{% if is_aggregated and filter_project_id %}&amp;project_id={{ filter_project_id }}{% endif %}'">
         <option value="">All Labels</option>
         {% for label in labels %}
         <option value="{{ label.id }}" {% if filter_label_id == label.id %}selected{% endif %}>{{ label.name }}</option>
@@ -43,7 +40,7 @@
 {% if is_aggregated and projects %}
 <div class="pp-filter-wrap">
     <i class="bi bi-folder pp-filter-icon{% if filter_project_id %} active{% endif %}" title="Filter by project"></i>
-    <select class="pp-select pp-filter-select" onchange="location.href='?project_id='+this.value+'&amp;sprint_filter={{ '1' if sprint_filter_active else '0' }}&amp;hide_backlog={{ '0' if hide_backlog else '1' }}'">
+    <select class="pp-select pp-filter-select" onchange="location.href='?project_id='+this.value+'&amp;sprint_filter={{ '1' if sprint_filter_active else '0' }}'">
         <option value="">All Projects</option>
         {% for p in projects %}
         <option value="{{ p.id }}" {% if filter_project_id == p.id %}selected{% endif %}>{{ p.key }} - {{ p.name }}</option>
@@ -114,7 +111,7 @@
                 {% endif %}
                 <div class="card-meta">
                     <i class="{{ item.item_type.icon }}" style="color:{{ item.item_type.color }}" title="{{ item.item_type.name }}"></i>
-                    <span class="pp-priority-badge pp-priority-{{ item.priority }}" title="{{ item.priority }}">
+                    <span class="pp-priority-badge pp-priority-{{ item.priority }}" title="{{ item.priority }}" data-quick-priority data-item-id="{{ item.id }}" data-current="{{ item.priority }}">
                         <i class="{{ item.priority_icon }}"></i>
                     </span>
                     {% if item.epic %}<span class="pp-status-dot" style="background:{{ item.epic.color }}; width:8px; height:8px;" title="{{ item.epic.name }}"></span>{% endif %}
@@ -124,9 +121,7 @@
                     </span>
                     {% endif %}
                     <span class="pp-sp-badge" data-sp-edit data-item-id="{{ item.id }}" data-sp="{{ item.story_points if item.story_points is not none else '' }}" title="Story points">{{ item.story_points if item.story_points is not none else '—' }}</span>
-                    {% if item.assignee %}
-                    <span class="pp-badge pp-badge-muted" style="margin-left:auto;">{{ item.assignee.display_name[:8] }}</span>
-                    {% endif %}
+                    <span class="pp-badge pp-badge-muted pp-quick-assignee" style="margin-left:auto;" data-quick-assignee data-item-id="{{ item.id }}" data-project-key="{{ item.project.key }}" data-current="{{ item.assignee_id or '' }}">{{ item.assignee.display_name[:8] if item.assignee else '—' }}</span>
                 </div>
             </div>
             {% endfor %}

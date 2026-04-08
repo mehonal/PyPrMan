@@ -2,6 +2,7 @@ from flask import Blueprint, abort, jsonify, render_template, request
 from flask_security import auth_required, current_user
 
 from app.extensions import db
+from app.models.activity import ActivityLog
 from app.models.epic import Epic
 from app.models.label import Label
 from app.models.project import Project, ProjectMembership
@@ -198,8 +199,34 @@ def reorder():
         abort(403)
 
     item.position = new_position
+
+    # Re-index all siblings in the target group so positions are contiguous
+    sibling_ids = data.get("sibling_ids")
+    if sibling_ids:
+        siblings = WorkItem.query.filter(
+            WorkItem.id.in_(sibling_ids),
+            WorkItem.project_id == item.project_id,
+        ).all()
+        sibling_map = {s.id: s for s in siblings}
+        for idx, sid in enumerate(sibling_ids):
+            if sid in sibling_map:
+                sibling_map[sid].position = idx
+
     if new_sprint_id is not None:
-        item.sprint_id = new_sprint_id if new_sprint_id else None
+        new_sid = new_sprint_id if new_sprint_id else None
+        if new_sid != item.sprint_id:
+            old_sprint = item.sprint
+            new_sprint = Sprint.query.get(new_sid) if new_sid else None
+            db.session.add(
+                ActivityLog(
+                    work_item=item,
+                    user_id=current_user.id,
+                    field_changed="sprint",
+                    old_value=old_sprint.name if old_sprint else "None",
+                    new_value=new_sprint.name if new_sprint else "None",
+                )
+            )
+            item.sprint_id = new_sid
     db.session.commit()
 
     return jsonify({"ok": True})

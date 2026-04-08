@@ -7,7 +7,7 @@ from app.models.project import Project, ProjectMembership
 from app.models.work_item import WorkItem
 from app.validation import validate_hex_color
 
-epics_bp = Blueprint("epics", __name__, url_prefix="/projects/<key>/epics")
+epics_bp = Blueprint("epics", __name__)
 
 
 def _get_project(key):
@@ -34,7 +34,41 @@ def _epic_sp_stats(epic):
 EPIC_STATUSES = ["to_do", "in_progress", "done"]
 
 
-@epics_bp.route("/")
+@epics_bp.route("/epics")
+@auth_required()
+def aggregated_epics():
+    memberships = ProjectMembership.query.filter_by(user_id=current_user.id).all()
+    project_ids = [m.project_id for m in memberships]
+    projects = Project.query.filter(Project.id.in_(project_ids)).all()
+
+    filter_project_id = request.args.get("project_id", type=int)
+    if filter_project_id and filter_project_id in project_ids:
+        filtered_ids = [filter_project_id]
+    else:
+        filtered_ids = project_ids
+
+    epics = (
+        Epic.query.filter(Epic.project_id.in_(filtered_ids))
+        .options(
+            db.selectinload(Epic.work_items).joinedload(WorkItem.status),
+            db.joinedload(Epic.project),
+        )
+        .order_by(Epic.position)
+        .all()
+    )
+    epic_stats = {epic.id: _epic_sp_stats(epic) for epic in epics}
+    return render_template(
+        "epics/list.html",
+        project=None,
+        projects=projects,
+        epics=epics,
+        epic_stats=epic_stats,
+        is_aggregated=True,
+        filter_project_id=filter_project_id,
+    )
+
+
+@epics_bp.route("/projects/<key>/epics/")
 @auth_required()
 def list_epics(key):
     project = _get_project(key)
@@ -50,7 +84,7 @@ def list_epics(key):
     )
 
 
-@epics_bp.route("/<int:epic_id>")
+@epics_bp.route("/projects/<key>/epics/<int:epic_id>")
 @auth_required()
 def detail_epic(key, epic_id):
     project = _get_project(key)
@@ -68,7 +102,7 @@ def detail_epic(key, epic_id):
     return render_template("epics/detail.html", project=project, epic=epic, epic_stats=stats)
 
 
-@epics_bp.route("/new", methods=["GET", "POST"])
+@epics_bp.route("/projects/<key>/epics/new", methods=["GET", "POST"])
 @auth_required()
 def create_epic(key):
     project = _get_project(key)
@@ -90,7 +124,7 @@ def create_epic(key):
     return render_template("epics/form.html", project=project, epic=None)
 
 
-@epics_bp.route("/<int:epic_id>/edit", methods=["GET", "POST"])
+@epics_bp.route("/projects/<key>/epics/<int:epic_id>/edit", methods=["GET", "POST"])
 @auth_required()
 def edit_epic(key, epic_id):
     project = _get_project(key)
@@ -112,7 +146,7 @@ def edit_epic(key, epic_id):
     return render_template("epics/form.html", project=project, epic=epic)
 
 
-@epics_bp.route("/<int:epic_id>/delete", methods=["POST"])
+@epics_bp.route("/projects/<key>/epics/<int:epic_id>/delete", methods=["POST"])
 @auth_required()
 def delete_epic(key, epic_id):
     project = _get_project(key)
@@ -126,7 +160,7 @@ def delete_epic(key, epic_id):
     return redirect(url_for("epics.list_epics", key=key))
 
 
-@epics_bp.route("/reorder", methods=["POST"])
+@epics_bp.route("/projects/<key>/epics/reorder", methods=["POST"])
 @auth_required()
 def reorder_epic(key):
     project = _get_project(key)
@@ -144,7 +178,7 @@ def reorder_epic(key):
     return redirect(url_for("epics.list_epics", key=key))
 
 
-@epics_bp.route("/board")
+@epics_bp.route("/projects/<key>/epics/board")
 @auth_required()
 def epic_board(key):
     project = _get_project(key)

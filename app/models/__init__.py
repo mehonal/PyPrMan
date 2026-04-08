@@ -7,6 +7,7 @@ from app.models.sprint import Sprint, SprintProject
 from app.models.work_item import WorkItem
 from app.models.activity import Comment, ActivityLog
 from app.models.label import Label, work_item_labels
+from app.models.link import WorkItemLink
 
 __all__ = [
     "User",
@@ -23,4 +24,5 @@ __all__ = [
     "ActivityLog",
     "Label",
     "work_item_labels",
+    "WorkItemLink",
 ]
