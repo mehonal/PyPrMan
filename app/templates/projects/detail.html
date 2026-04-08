@@ -8,7 +8,7 @@
 {% endblock %}
 {% block actions %}
 <button class="pp-btn pp-btn-primary pp-btn-sm" onclick="ppModal.createItem('{{ project.key }}')">
-    <i class="bi bi-plus-lg"></i> New Item
+    <i class="bi bi-plus-lg"></i><span class="d-none d-sm-inline"> New Item</span>
 </button>
 {% if membership.role in ['owner', 'admin'] %}
 <a href="{{ url_for('projects.edit_project', key=project.key) }}" class="pp-btn pp-btn-secondary pp-btn-sm">
