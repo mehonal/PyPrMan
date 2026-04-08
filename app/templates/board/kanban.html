@@ -48,10 +48,10 @@
     </select>
 </div>
 {% endif %}
-{% if project %}
 <button class="pp-btn pp-btn-secondary pp-btn-sm" id="bulkToggleBtn" onclick="ppBulk.toggleMode()" title="Select items">
     <i class="bi bi-check2-square"></i><span class="d-none d-sm-inline"> Select</span>
 </button>
+{% if project %}
 <button class="pp-btn pp-btn-primary pp-btn-sm" onclick="ppModal.createItem('{{ project.key }}')">
     <i class="bi bi-plus-lg"></i><span class="d-none d-sm-inline"> New Item</span>
 </button>

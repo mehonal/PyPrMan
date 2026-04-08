@@ -48,10 +48,10 @@
     </select>
 </div>
 {% endif %}
-{% if project %}
 <button class="pp-btn pp-btn-secondary pp-btn-sm" id="bulkToggleBtn" onclick="ppBulk.toggleMode()" title="Select items">
     <i class="bi bi-check2-square"></i><span class="d-none d-sm-inline"> Select</span>
 </button>
+{% if project %}
 <button class="pp-btn pp-btn-primary pp-btn-sm" onclick="ppModal.createItem('{{ project.key }}')">
     <i class="bi bi-plus-lg"></i><span class="d-none d-sm-inline"> New Item</span>
 </button>
@@ -80,7 +80,7 @@
     </div>
     <div class="pp-card-body p-0" data-backlog-group="{{ sprint.id }}">
         {% for item in sprint_items.get(sprint.id, []) %}
-        <div class="pp-list-item" data-item-id="{{ item.id }}">
+        <div class="pp-list-item" data-item-id="{{ item.id }}" data-project-key="{{ item.project.key }}">
             <input type="checkbox" class="pp-bulk-check" style="display:none;" onchange="ppBulk.toggle({{ item.id }}, this.checked)" onclick="event.stopPropagation()">
             <a href="{{ url_for('work_items.detail', key=item.project.key, item_key=item.item_key) }}" class="pp-list-item-link">
                 <span class="item-key">
@@ -118,7 +118,7 @@
     </div>
     <div class="pp-card-body p-0" data-backlog-group="backlog">
         {% for item in no_sprint_items %}
-        <div class="pp-list-item" data-item-id="{{ item.id }}">
+        <div class="pp-list-item" data-item-id="{{ item.id }}" data-project-key="{{ item.project.key }}">
             <input type="checkbox" class="pp-bulk-check" style="display:none;" onchange="ppBulk.toggle({{ item.id }}, this.checked)" onclick="event.stopPropagation()">
             <a href="{{ url_for('work_items.detail', key=item.project.key, item_key=item.item_key) }}" class="pp-list-item-link">
                 <span class="item-key">

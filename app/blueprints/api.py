@@ -663,40 +663,110 @@ def bulk_update():
     if not item_ids or not changes:
         return jsonify({"error": "item_ids and changes required"}), 400
 
-    items = WorkItem.query.filter(WorkItem.id.in_(item_ids)).all()
+    items = (
+        WorkItem.query.filter(WorkItem.id.in_(item_ids))
+        .options(db.joinedload(WorkItem.status), db.joinedload(WorkItem.assignee))
+        .all()
+    )
     user_pids = set(_user_project_ids())
 
+    # Pre-fetch status-by-name lookup per project if cross-project status change
+    status_name = changes.get("status_name")
+    project_status_map = {}
+    if status_name:
+        statuses = Status.query.filter(
+            Status.name == status_name,
+            Status.project_id.in_(user_pids),
+        ).all()
+        for s in statuses:
+            project_status_map[s.project_id] = s
+
+    # Pre-validate sprint belongs to each item's project
+    new_sprint_id = None
+    sprint_project_ids = set()
+    if "sprint_id" in changes:
+        new_sprint_id = changes["sprint_id"] or None
+        if new_sprint_id:
+            sprint_project_ids = {
+                sp.project_id
+                for sp in SprintProject.query.filter_by(sprint_id=new_sprint_id).all()
+            }
+
+    # Pre-validate assignee membership per project
+    new_aid = None
+    assignee_project_ids = set()
+    new_assignee_name = None
+    if "assignee_id" in changes:
+        new_aid = changes["assignee_id"] or None
+        if new_aid:
+            assignee_project_ids = {
+                m.project_id
+                for m in ProjectMembership.query.filter_by(user_id=new_aid).all()
+            }
+            from app.models.user import User
+            new_user = User.query.get(new_aid)
+            new_assignee_name = new_user.display_name if new_user else "Unassigned"
+
+    # Pre-fetch status by id (single-project path)
+    status_by_id = None
+    if "status_id" in changes:
+        status_by_id = Status.query.get(changes["status_id"])
+
     updated = 0
+    skipped = 0
     for item in items:
         if item.project_id not in user_pids:
             continue
 
-        if "status_id" in changes:
-            new_status = Status.query.get(changes["status_id"])
-            if new_status and new_status.project_id == item.project_id and new_status.id != item.status_id:
+        if status_by_id is not None:
+            new_status = status_by_id
+            if new_status.project_id == item.project_id and new_status.id != item.status_id:
                 db.session.add(ActivityLog(
                     work_item=item, user_id=current_user.id,
                     field_changed="status",
                     old_value=item.status.name, new_value=new_status.name,
                 ))
                 item.status_id = new_status.id
-
-        if "sprint_id" in changes:
-            item.sprint_id = changes["sprint_id"] or None
-
-        if "assignee_id" in changes:
-            new_aid = changes["assignee_id"] or None
-            if new_aid != item.assignee_id:
-                from app.models.user import User
-                old_name = item.assignee.display_name if item.assignee else "Unassigned"
-                new_user = User.query.get(new_aid) if new_aid else None
-                new_name = new_user.display_name if new_user else "Unassigned"
+        elif status_name:
+            new_status = project_status_map.get(item.project_id)
+            if new_status and new_status.id != item.status_id:
                 db.session.add(ActivityLog(
                     work_item=item, user_id=current_user.id,
-                    field_changed="assignee",
-                    old_value=old_name, new_value=new_name,
+                    field_changed="status",
+                    old_value=item.status.name, new_value=new_status.name,
                 ))
-                item.assignee_id = new_aid
+                item.status_id = new_status.id
+            elif not new_status:
+                skipped += 1
+                continue
+
+        if "sprint_id" in changes:
+            if new_sprint_id is None:
+                item.sprint_id = None
+            elif item.project_id in sprint_project_ids:
+                item.sprint_id = new_sprint_id
+            # else: sprint not linked to this project, skip silently
+
+        if "assignee_id" in changes:
+            if new_aid is None:
+                if item.assignee_id is not None:
+                    old_name = item.assignee.display_name if item.assignee else "Unassigned"
+                    db.session.add(ActivityLog(
+                        work_item=item, user_id=current_user.id,
+                        field_changed="assignee",
+                        old_value=old_name, new_value="Unassigned",
+                    ))
+                    item.assignee_id = None
+            elif item.project_id in assignee_project_ids:
+                if new_aid != item.assignee_id:
+                    old_name = item.assignee.display_name if item.assignee else "Unassigned"
+                    db.session.add(ActivityLog(
+                        work_item=item, user_id=current_user.id,
+                        field_changed="assignee",
+                        old_value=old_name, new_value=new_assignee_name,
+                    ))
+                    item.assignee_id = new_aid
+            # else: assignee not a member of this project, skip silently
 
         if "priority" in changes:
             new_p = validate_priority(changes["priority"])
@@ -711,7 +781,7 @@ def bulk_update():
         updated += 1
 
     db.session.commit()
-    return jsonify({"ok": True, "updated": updated})
+    return jsonify({"ok": True, "updated": updated, "skipped": skipped})
 
 
 @api_bp.route("/items/bulk", methods=["DELETE"])
