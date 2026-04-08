@@ -124,7 +124,7 @@
                                 </button>
                                 {% endif %}
                             </div>
-                            <div class="pp-comment-body">{{ comment.body }}</div>
+                            <div class="pp-comment-body pp-markdown" data-raw-body="{{ comment.body|e }}"></div>
                         </div>
                     </div>
                     {% endfor %}
@@ -136,9 +136,15 @@
                 <div class="pp-comment-form-wrap">
                     <div class="pp-comment-avatar">{{ current_user.display_name[:2] }}</div>
                     <form id="comment-form">
-                        <div class="pp-form-group" style="margin-bottom:8px;">
+                        <div class="pp-comment-tabs">
+                            <button type="button" class="pp-comment-tab active" data-comment-tab="write">Write</button>
+                            <button type="button" class="pp-comment-tab" data-comment-tab="preview">Preview</button>
+                        </div>
+                        <div class="pp-form-group" style="margin-bottom:8px; position:relative;">
                             <label for="body" class="visually-hidden">Add a comment</label>
-                            <textarea class="pp-input" id="body" name="body" rows="2" placeholder="Write a comment..." required style="font-size:0.8125rem;"></textarea>
+                            <textarea class="pp-input" id="body" name="body" rows="3" placeholder="Write a comment... Use @name to mention someone, **bold**, _italic_, `code`" required style="font-size:0.8125rem;"></textarea>
+                            <div id="comment-preview" class="pp-comment-preview" style="display:none;">Nothing to preview</div>
+                            <div id="mention-dropdown" class="pp-mention-dropdown" style="display:none;"></div>
                         </div>
                         <button type="submit" class="pp-btn pp-btn-primary pp-btn-sm">Comment</button>
                     </form>

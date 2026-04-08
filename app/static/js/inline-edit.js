@@ -399,18 +399,102 @@ var ppInline = (function () {
 })();
 
 /**
- * AJAX comments — intercept form submit and delete buttons.
+ * AJAX comments with markdown rendering and @mention support.
  */
 var ppComments = (function () {
     'use strict';
 
+    var _members = null;
+    var _projectKey = null;
+    var _mentionState = null; // { start, selectedIndex }
+
+    function renderCommentMarkdown(raw) {
+        if (!raw) return '';
+        var html;
+        if (typeof marked !== 'undefined' && marked.parse) {
+            html = sanitizeHtml(marked.parse(raw, { breaks: true }));
+        } else {
+            var div = document.createElement('div');
+            div.textContent = raw;
+            html = '<p>' + div.innerHTML.replace(/\n/g, '<br>') + '</p>';
+        }
+        // Replace @mentions with profile links
+        html = html.replace(/@([\w.\-]+)/g, function (match, name) {
+            var displayName = name.replace(/\./g, ' ');
+            var member = _members ? _members.find(function (m) {
+                return m.name.replace(/\s+/g, '.').toLowerCase() === name.toLowerCase()
+                    || m.name.toLowerCase() === displayName.toLowerCase();
+            }) : null;
+            var href = member ? '/users/' + member.id : '#';
+            return '<a class="pp-mention" href="' + href + '" title="' + displayName + '">@' + displayName + '</a>';
+        });
+        return html;
+    }
+
+    function sanitizeHtml(html) {
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        doc.querySelectorAll('script, iframe, object, embed, form').forEach(function (el) { el.remove(); });
+        doc.querySelectorAll('*').forEach(function (el) {
+            Array.from(el.attributes).forEach(function (attr) {
+                if (attr.name.startsWith('on') || (attr.name === 'href' && attr.value.trim().toLowerCase().startsWith('javascript:')) || (attr.name === 'src' && attr.value.trim().toLowerCase().startsWith('javascript:'))) {
+                    el.removeAttribute(attr.name);
+                }
+            });
+        });
+        return doc.body.innerHTML;
+    }
+
+    function loadMembers(projectKey, callback) {
+        if (_members) { callback(_members); return; }
+        api.get('/api/projects/' + projectKey + '/form-options').then(function (data) {
+            _members = data.members;
+            callback(_members);
+        });
+    }
+
     function init(itemId, projectKey, itemKey) {
+        _projectKey = projectKey;
         var form = document.getElementById('comment-form');
         if (!form) return;
 
+        // Load members first, then render existing comments with proper profile links
+        loadMembers(projectKey, function () {
+            document.querySelectorAll('.pp-comment-body[data-raw-body]').forEach(function (el) {
+                el.innerHTML = renderCommentMarkdown(el.dataset.rawBody);
+            });
+        });
+
+        // Write/Preview tabs
+        var tabs = form.querySelectorAll('[data-comment-tab]');
+        var textarea = form.querySelector('textarea[name="body"]');
+        var preview = document.getElementById('comment-preview');
+
+        tabs.forEach(function (tab) {
+            tab.addEventListener('click', function (e) {
+                e.preventDefault();
+                tabs.forEach(function (t) { t.classList.remove('active'); });
+                tab.classList.add('active');
+                if (tab.dataset.commentTab === 'preview') {
+                    var raw = textarea.value.trim();
+                    preview.innerHTML = raw ? renderCommentMarkdown(raw) : 'Nothing to preview';
+                    preview.className = 'pp-comment-preview' + (raw ? ' pp-markdown' : '');
+                    textarea.style.display = 'none';
+                    preview.style.display = '';
+                } else {
+                    textarea.style.display = '';
+                    preview.style.display = 'none';
+                    textarea.focus();
+                }
+            });
+        });
+
+        // @mention autocomplete
+        var mentionDropdown = document.getElementById('mention-dropdown');
+        initMentions(textarea, mentionDropdown, projectKey);
+
+        // Submit
         form.addEventListener('submit', function (e) {
             e.preventDefault();
-            var textarea = form.querySelector('textarea[name="body"]');
             var body = textarea.value.trim();
             if (!body) return;
 
@@ -419,8 +503,14 @@ var ppComments = (function () {
 
             api.post('/api/items/' + itemId + '/comments', { body: body }).then(function (res) {
                 if (res.ok) {
-                    appendComment(res.comment, itemId, projectKey, itemKey);
+                    appendComment(res.comment);
                     textarea.value = '';
+                    // Switch back to write tab
+                    tabs.forEach(function (t) {
+                        t.classList.toggle('active', t.dataset.commentTab === 'write');
+                    });
+                    textarea.style.display = '';
+                    preview.style.display = 'none';
                     var emptyMsg = document.getElementById('no-comments-msg');
                     if (emptyMsg) emptyMsg.remove();
                 }
@@ -431,6 +521,7 @@ var ppComments = (function () {
             });
         });
 
+        // Delete
         document.getElementById('comments-list').addEventListener('click', function (e) {
             var btn = e.target.closest('[data-delete-comment]');
             if (!btn) return;
@@ -449,7 +540,113 @@ var ppComments = (function () {
         });
     }
 
-    function appendComment(comment, itemId, projectKey, itemKey) {
+    function initMentions(textarea, dropdown, projectKey) {
+        textarea.addEventListener('input', function () {
+            var pos = textarea.selectionStart;
+            var text = textarea.value.substring(0, pos);
+            // Find the @ trigger: must be at start of line/string or after whitespace
+            var match = text.match(/(^|[\s])@([\w.\-]*)$/);
+            if (!match) {
+                closeMentions(dropdown);
+                return;
+            }
+            var query = match[2].toLowerCase();
+            _mentionState = { start: pos - match[2].length - 1, selectedIndex: 0 };
+
+            loadMembers(projectKey, function (members) {
+                var filtered = members.filter(function (m) {
+                    return m.name.toLowerCase().indexOf(query) !== -1;
+                });
+                if (!filtered.length) {
+                    closeMentions(dropdown);
+                    return;
+                }
+                _mentionState.selectedIndex = 0;
+                renderMentionDropdown(dropdown, filtered, textarea);
+            });
+        });
+
+        textarea.addEventListener('keydown', function (e) {
+            if (!_mentionState || dropdown.style.display === 'none') return;
+            var options = dropdown.querySelectorAll('.pp-mention-option');
+            if (!options.length) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                _mentionState.selectedIndex = Math.min(_mentionState.selectedIndex + 1, options.length - 1);
+                updateMentionSelection(options);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                _mentionState.selectedIndex = Math.max(_mentionState.selectedIndex - 1, 0);
+                updateMentionSelection(options);
+            } else if (e.key === 'Enter' || e.key === 'Tab') {
+                if (dropdown.style.display !== 'none') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var selected = options[_mentionState.selectedIndex];
+                    if (selected) insertMention(textarea, selected.dataset.memberName, dropdown);
+                }
+            } else if (e.key === 'Escape') {
+                closeMentions(dropdown);
+            }
+        });
+
+        textarea.addEventListener('blur', function () {
+            setTimeout(function () { closeMentions(dropdown); }, 200);
+        });
+    }
+
+    function renderMentionDropdown(dropdown, members, textarea) {
+        dropdown.innerHTML = '';
+        members.forEach(function (m, i) {
+            var opt = document.createElement('div');
+            opt.className = 'pp-mention-option' + (i === 0 ? ' selected' : '');
+            opt.dataset.memberName = m.name;
+            opt.innerHTML = '<span class="pp-mention-avatar">' + escapeHtml(m.name.substring(0, 2)) + '</span>' +
+                '<span>' + escapeHtml(m.name) + '</span>';
+            opt.addEventListener('mousedown', function (e) {
+                e.preventDefault();
+                insertMention(textarea, m.name, dropdown);
+            });
+            dropdown.appendChild(opt);
+        });
+        // Position below caret
+        positionMentionDropdown(dropdown, textarea);
+        dropdown.style.display = '';
+    }
+
+    function positionMentionDropdown(dropdown, textarea) {
+        var rect = textarea.getBoundingClientRect();
+        dropdown.style.position = 'absolute';
+        dropdown.style.left = '0';
+        dropdown.style.bottom = (textarea.offsetHeight + 4) + 'px';
+    }
+
+    function updateMentionSelection(options) {
+        options.forEach(function (o, i) {
+            o.classList.toggle('selected', i === _mentionState.selectedIndex);
+        });
+    }
+
+    function insertMention(textarea, name, dropdown) {
+        if (!_mentionState) return;
+        var before = textarea.value.substring(0, _mentionState.start);
+        var after = textarea.value.substring(textarea.selectionStart);
+        // Use display name with dots/hyphens preserved, replace spaces with dots for mention token
+        var mentionName = name.replace(/\s+/g, '.');
+        textarea.value = before + '@' + mentionName + ' ' + after;
+        var newPos = _mentionState.start + 1 + mentionName.length + 1;
+        textarea.selectionStart = textarea.selectionEnd = newPos;
+        closeMentions(dropdown);
+        textarea.focus();
+    }
+
+    function closeMentions(dropdown) {
+        dropdown.style.display = 'none';
+        _mentionState = null;
+    }
+
+    function appendComment(comment) {
         var list = document.getElementById('comments-list');
         var div = document.createElement('div');
         div.className = 'pp-comment';
@@ -468,7 +665,7 @@ var ppComments = (function () {
                     '<span class="pp-comment-time">' + escapeHtml(comment.created_at) + '</span>' +
                     deleteBtn +
                 '</div>' +
-                '<div class="pp-comment-body">' + escapeHtml(comment.body) + '</div>' +
+                '<div class="pp-comment-body pp-markdown">' + renderCommentMarkdown(comment.body) + '</div>' +
             '</div>';
 
         list.appendChild(div);

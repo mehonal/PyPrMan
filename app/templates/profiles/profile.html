@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}{{ profile_user.display_name }} - PyPrMan{% endblock %}
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+    <li class="breadcrumb-item active">{{ profile_user.display_name }}</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="pp-card">
+            <div class="pp-card-body" style="text-align:center; padding:24px;">
+                <div class="pp-profile-avatar">{{ profile_user.display_name[:2] }}</div>
+                <h2 style="font-size:1.25rem; margin:12px 0 4px;">{{ profile_user.display_name }}</h2>
+                <p style="color:var(--pp-text-muted); font-size:0.8125rem; margin:0;">{{ profile_user.email }}</p>
+                {% if profile_user.created_at %}
+                <p style="color:var(--pp-text-muted); font-size:0.75rem; margin:8px 0 0;">Joined {{ profile_user.created_at.strftime('%b %d, %Y') }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="pp-card" style="margin-top:16px;">
+            <div class="pp-card-header">
+                <i class="bi bi-folder" style="color:var(--pp-primary);"></i> Common Projects
+            </div>
+            <div class="pp-card-body p-0">
+                {% for project in common_projects %}
+                <a href="{{ url_for('projects.detail', key=project.key) }}" class="pp-list-item">
+                    <span class="pp-badge-key">{{ project.key }}</span>
+                    <span class="item-title">{{ project.name }}</span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="pp-card mb-4">
+            <div class="pp-card-header">
+                <i class="bi bi-person-check" style="color:var(--pp-primary);"></i> Assigned Items
+                {% if assigned_items %}<span class="pp-badge pp-badge-muted" style="margin-left:6px;">{{ assigned_items|length }}</span>{% endif %}
+            </div>
+            <div class="pp-card-body p-0">
+                {% for item in assigned_items %}
+                <a href="{{ url_for('work_items.detail', key=item.project.key, item_key=item.item_key) }}" class="pp-list-item">
+                    <span class="pp-badge-key" style="min-width:60px;">{{ item.item_key }}</span>
+                    <i class="{{ item.item_type.icon }}" style="color:{{ item.item_type.color }}; font-size:0.875rem;"></i>
+                    <span class="item-title">{{ item.title }}</span>
+                    <span class="item-meta">
+                        <span class="pp-status-dot" style="background:{{ item.status.color }}" title="{{ item.status.name }}"></span>
+                        <i class="{{ item.priority_icon }}" style="color:{{ item.priority_color }}; font-size:0.75rem;" title="{{ item.priority }}"></i>
+                    </span>
+                </a>
+                {% endfor %}
+                {% if not assigned_items %}
+                <div class="pp-empty" style="padding:24px;">
+                    <p style="margin:0; font-size:0.8125rem;">No assigned items on common projects.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="pp-card mb-4">
+            <div class="pp-card-header">
+                <i class="bi bi-chat-dots" style="color:var(--pp-primary);"></i> Recent Comments
+            </div>
+            <div class="pp-card-body">
+                {% for comment in recent_comments %}
+                <div class="pp-profile-comment{% if not loop.last %} mb-3 pb-3{% endif %}" style="{% if not loop.last %}border-bottom:1px solid var(--pp-border-light);{% endif %}">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                        <a href="{{ url_for('work_items.detail', key=comment.work_item.project.key, item_key=comment.work_item.item_key) }}" style="font-size:0.75rem; font-family:var(--pp-font-mono); color:var(--pp-text-muted); text-decoration:none;">
+                            {{ comment.work_item.item_key }}
+                        </a>
+                        <span style="font-size:0.75rem; color:var(--pp-text-muted);">{{ comment.created_at.strftime('%b %d, %Y %H:%M') }}</span>
+                    </div>
+                    <div class="pp-comment-body pp-markdown pp-profile-comment-body" data-raw-body="{{ comment.body|e }}"></div>
+                </div>
+                {% endfor %}
+                {% if not recent_comments %}
+                <div class="pp-empty" style="padding:24px;">
+                    <p style="margin:0; font-size:0.8125rem;">No recent comments.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="pp-card">
+            <div class="pp-card-header">
+                <i class="bi bi-clock-history" style="color:var(--pp-primary);"></i> Recent Activity
+            </div>
+            <div class="pp-card-body">
+                {% for log in recent_activity %}
+                <div style="padding:6px 0; font-size:0.8125rem; color:var(--pp-text-secondary);{% if not loop.last %} border-bottom:1px solid var(--pp-border-light);{% endif %}">
+                    <a href="{{ url_for('work_items.detail', key=log.work_item.project.key, item_key=log.work_item.item_key) }}" style="font-family:var(--pp-font-mono); font-size:0.75rem; text-decoration:none; color:var(--pp-text-muted);">{{ log.work_item.item_key }}</a>
+                    changed <em>{{ log.field_changed }}</em>
+                    {% if log.old_value %}from <span style="text-decoration:line-through;">{{ log.old_value }}</span>{% endif %}
+                    to <strong style="color:var(--pp-text);">{{ log.new_value }}</strong>
+                    <span style="margin-left:8px; color:var(--pp-text-muted); font-size:0.75rem;">{{ log.created_at.strftime('%b %d, %Y %H:%M') }}</span>
+                </div>
+                {% endfor %}
+                {% if not recent_activity %}
+                <div class="pp-empty" style="padding:24px;">
+                    <p style="margin:0; font-size:0.8125rem;">No recent activity on common projects.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        var members = [{% for m in members %}{ id: {{ m.id }}, name: {{ m.display_name|tojson }} }{% if not loop.last %},{% endif %}{% endfor %}];
+
+        function sanitizeHtml(html) {
+            var doc = new DOMParser().parseFromString(html, 'text/html');
+            doc.querySelectorAll('script, iframe, object, embed, form').forEach(function (el) { el.remove(); });
+            doc.querySelectorAll('*').forEach(function (el) {
+                Array.from(el.attributes).forEach(function (attr) {
+                    if (attr.name.startsWith('on') || (attr.name === 'href' && attr.value.trim().toLowerCase().startsWith('javascript:')) || (attr.name === 'src' && attr.value.trim().toLowerCase().startsWith('javascript:'))) {
+                        el.removeAttribute(attr.name);
+                    }
+                });
+            });
+            return doc.body.innerHTML;
+        }
+
+        function renderMarkdown(raw) {
+            if (!raw) return '';
+            var html;
+            if (typeof marked !== 'undefined' && marked.parse) {
+                html = sanitizeHtml(marked.parse(raw, { breaks: true }));
+            } else {
+                var div = document.createElement('div');
+                div.textContent = raw;
+                html = '<p>' + div.innerHTML.replace(/\n/g, '<br>') + '</p>';
+            }
+            html = html.replace(/@([\w.\-]+)/g, function (match, name) {
+                var displayName = name.replace(/\./g, ' ');
+                var member = members.find(function (m) {
+                    return m.name.replace(/\s+/g, '.').toLowerCase() === name.toLowerCase()
+                        || m.name.toLowerCase() === displayName.toLowerCase();
+                });
+                var href = member ? '/users/' + member.id : '#';
+                return '<a class="pp-mention" href="' + href + '" title="' + displayName + '">@' + displayName + '</a>';
+            });
+            return html;
+        }
+
+        document.querySelectorAll('.pp-profile-comment-body[data-raw-body]').forEach(function (el) {
+            el.innerHTML = renderMarkdown(el.dataset.rawBody);
+        });
+    })();
+</script>
+{% endblock %}
