@@ -60,6 +60,46 @@
 
             <button type="submit" class="pp-btn pp-btn-primary">Save Settings</button>
         </form>
+
+        <div class="pp-card mt-5" style="border-color: var(--pp-danger, #ef4444);">
+            <div class="pp-card-header" style="color: var(--pp-danger, #ef4444);">Danger Zone</div>
+            <div class="pp-card-body">
+                <p style="margin-bottom:12px;">Deactivate your account and anonymize your personal data. You will no longer be able to log in.</p>
+                <ul style="margin-bottom:12px; font-size:0.85rem; color:var(--pp-text-muted); padding-left:20px;">
+                    <li>Your name and email will be replaced with "Deleted User"</li>
+                    <li>You will be removed from all projects</li>
+                    <li>Items assigned to you will be unassigned</li>
+                    <li>Items you reported, comments, and activity history will be preserved under the anonymous "Deleted User" label</li>
+                </ul>
+                <button type="button" class="pp-btn pp-btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">Delete Account</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteAccountModal" tabindex="-1" aria-labelledby="deleteAccountModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('user_settings.delete_account') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteAccountModalLabel">Delete Account</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Your account will be deactivated and your personal information anonymized. Your past activity (reported items, comments, history) will remain visible as "Deleted User".</p>
+                    <p><strong>This cannot be undone.</strong></p>
+                    <div class="pp-form-group" style="margin-top:16px;">
+                        <label class="pp-form-label" for="confirmation">Type <strong>{{ current_user.email }}</strong> to confirm</label>
+                        <input type="text" class="pp-input" id="confirmation" name="confirmation" required autocomplete="off">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="pp-btn" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="pp-btn pp-btn-danger">Delete My Account</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 {% endblock %}
