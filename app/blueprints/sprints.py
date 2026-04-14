@@ -9,15 +9,9 @@ from app.models.project import Project, ProjectMembership
 from app.models.sprint import Sprint, SprintProject
 from app.models.status import Status
 from app.models.work_item import WorkItem
+from app.blueprints.helpers import user_project_ids as _user_project_ids
 
 sprints_bp = Blueprint("sprints", __name__, url_prefix="/sprints")
-
-
-def _user_project_ids():
-    return [
-        m.project_id
-        for m in ProjectMembership.query.filter_by(user_id=current_user.id).all()
-    ]
 
 
 @sprints_bp.route("/")
@@ -249,7 +243,9 @@ def start_sprint(sprint_id):
 @sprints_bp.route("/<int:sprint_id>/complete", methods=["POST"])
 @auth_required()
 def complete_sprint(sprint_id):
-    sprint = Sprint.query.get_or_404(sprint_id)
+    sprint = Sprint.query.options(
+        db.selectinload(Sprint.work_items).joinedload(WorkItem.status),
+    ).get_or_404(sprint_id)
     sprint_project_ids = [sp.project_id for sp in sprint.sprint_projects]
     membership = ProjectMembership.query.filter(
         ProjectMembership.user_id == current_user.id,

@@ -9,15 +9,9 @@ from app.models.project import Project, ProjectMembership
 from app.models.sprint import Sprint, SprintProject
 from app.models.status import Status
 from app.models.work_item import WorkItem
+from app.blueprints.helpers import user_project_ids as _user_project_ids
 
 board_bp = Blueprint("board", __name__)
-
-
-def _user_project_ids():
-    return [
-        m.project_id
-        for m in ProjectMembership.query.filter_by(user_id=current_user.id).all()
-    ]
 
 
 @board_bp.route("/projects/<key>/board")

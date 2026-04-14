@@ -7,19 +7,10 @@ from app.models.epic import Epic
 from app.models.project import Project, ProjectMembership
 from app.models.sprint import Sprint, SprintProject
 from app.models.work_item import WorkItem
+from app.blueprints.helpers import get_project as _get_project
 from app.validation import validate_priority
 
 work_items_bp = Blueprint("work_items", __name__, url_prefix="/projects/<key>/items")
-
-
-def _get_project(key):
-    project = Project.query.filter_by(key=key.upper()).first_or_404()
-    membership = ProjectMembership.query.filter_by(
-        user_id=current_user.id, project_id=project.id
-    ).first()
-    if not membership:
-        abort(403)
-    return project
 
 
 def _get_sprints_for_project(project):

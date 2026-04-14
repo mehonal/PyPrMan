@@ -8,15 +8,9 @@ from app.models.label import Label
 from app.models.project import Project, ProjectMembership
 from app.models.sprint import Sprint, SprintProject
 from app.models.work_item import WorkItem
+from app.blueprints.helpers import user_project_ids as _user_project_ids
 
 backlog_bp = Blueprint("backlog", __name__)
-
-
-def _user_project_ids():
-    return [
-        m.project_id
-        for m in ProjectMembership.query.filter_by(user_id=current_user.id).all()
-    ]
 
 
 @backlog_bp.route("/projects/<key>/backlog")

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Not Found - PyPrMan{% endblock %}
+{% block content %}
+<div class="pp-empty" style="padding: 80px 24px; text-align: center;">
+    <h2 style="margin-bottom: 8px;">404 - Page Not Found</h2>
+    <p style="color: var(--pp-muted);">The page you're looking for doesn't exist or has been moved.</p>
+    <a href="{{ url_for('main.dashboard') }}" class="pp-btn pp-btn-primary" style="margin-top: 16px;">Go to Dashboard</a>
+</div>
+{% endblock %}

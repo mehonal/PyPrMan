@@ -5,19 +5,10 @@ from app.extensions import db
 from app.models.epic import Epic
 from app.models.project import Project, ProjectMembership
 from app.models.work_item import WorkItem
+from app.blueprints.helpers import get_project as _get_project
 from app.validation import validate_hex_color
 
 epics_bp = Blueprint("epics", __name__)
-
-
-def _get_project(key):
-    project = Project.query.filter_by(key=key.upper()).first_or_404()
-    membership = ProjectMembership.query.filter_by(
-        user_id=current_user.id, project_id=project.id
-    ).first()
-    if not membership:
-        abort(403)
-    return project
 
 
 def _epic_sp_stats(epic):

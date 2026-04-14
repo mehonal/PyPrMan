@@ -12,6 +12,7 @@ from app.models.sprint import Sprint, SprintProject
 from app.models.status import Status
 from app.models.link import LINK_REVERSE, LINK_TYPES, WorkItemLink
 from app.models.work_item import WorkItem
+from app.blueprints.helpers import get_project as _get_project, user_project_ids as _user_project_ids
 from app.validation import (
     validate_hex_color,
     validate_icon_class,
@@ -22,16 +23,6 @@ from app.validation import (
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
 
-def _get_project(key):
-    project = Project.query.filter_by(key=key.upper()).first_or_404()
-    membership = ProjectMembership.query.filter_by(
-        user_id=current_user.id, project_id=project.id
-    ).first()
-    if not membership:
-        abort(403)
-    return project
-
-
 def _get_item(item_id):
     item = WorkItem.query.get_or_404(item_id)
     membership = ProjectMembership.query.filter_by(
@@ -40,13 +31,6 @@ def _get_item(item_id):
     if not membership:
         abort(403)
     return item
-
-
-def _user_project_ids():
-    return [
-        m.project_id
-        for m in ProjectMembership.query.filter_by(user_id=current_user.id).all()
-    ]
 
 
 @api_bp.route("/search")
@@ -219,10 +203,13 @@ def create_sprint():
 
     start_date = None
     end_date = None
-    if data.get("start_date"):
-        start_date = datetime.strptime(data["start_date"], "%Y-%m-%d").date()
-    if data.get("end_date"):
-        end_date = datetime.strptime(data["end_date"], "%Y-%m-%d").date()
+    try:
+        if data.get("start_date"):
+            start_date = datetime.strptime(data["start_date"], "%Y-%m-%d").date()
+        if data.get("end_date"):
+            end_date = datetime.strptime(data["end_date"], "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid date format, expected YYYY-MM-DD"}), 400
 
     sprint = Sprint(
         name=data["name"].strip(),
@@ -600,7 +587,10 @@ def update_epic(epic_id):
     if "status" in data and data["status"] in ("to_do", "in_progress", "done"):
         epic.status = data["status"]
     if "position" in data:
-        epic.position = int(data["position"])
+        try:
+            epic.position = int(data["position"])
+        except (ValueError, TypeError):
+            return jsonify({"error": "position must be an integer"}), 400
     db.session.commit()
     return jsonify({"ok": True, "status": epic.status, "position": epic.position})
 
@@ -812,7 +802,16 @@ def bulk_delete():
 @api_bp.route("/items/<int:item_id>/links", methods=["GET"])
 @auth_required()
 def get_links(item_id):
-    item = _get_item(item_id)
+    from sqlalchemy.orm import joinedload, selectinload
+    item = WorkItem.query.options(
+        selectinload(WorkItem.outgoing_links).joinedload(WorkItemLink.target).joinedload(WorkItem.project),
+        selectinload(WorkItem.incoming_links).joinedload(WorkItemLink.source).joinedload(WorkItem.project),
+    ).get_or_404(item_id)
+    membership = ProjectMembership.query.filter_by(
+        user_id=current_user.id, project_id=item.project_id
+    ).first()
+    if not membership:
+        abort(403)
     links = []
     for link in item.outgoing_links:
         links.append({

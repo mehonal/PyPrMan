@@ -1,6 +1,6 @@
 import os
 
-from flask import Flask
+from flask import Flask, jsonify, render_template
 from flask_wtf.csrf import CSRFProtect
 
 from config import config
@@ -59,6 +59,27 @@ def create_app(config_name=None):
     app.register_blueprint(user_settings_bp)
     app.register_blueprint(profiles_bp)
 
+    @app.errorhandler(403)
+    def forbidden(e):
+        from flask import request as req
+        if req.path.startswith("/api/"):
+            return jsonify({"error": "Forbidden"}), 403
+        return render_template("errors/403.html"), 403
+
+    @app.errorhandler(404)
+    def not_found(e):
+        from flask import request as req
+        if req.path.startswith("/api/"):
+            return jsonify({"error": "Not found"}), 404
+        return render_template("errors/404.html"), 404
+
+    @app.errorhandler(500)
+    def server_error(e):
+        from flask import request as req
+        if req.path.startswith("/api/"):
+            return jsonify({"error": "Internal server error"}), 500
+        return render_template("errors/500.html"), 500
+
     @app.context_processor
     def inject_sidebar_data():
         from flask_security import current_user
@@ -66,7 +87,9 @@ def create_app(config_name=None):
         if current_user.is_authenticated:
             from app.models.project import Project, ProjectMembership
 
-            memberships = ProjectMembership.query.filter_by(
+            memberships = ProjectMembership.query.options(
+                db.joinedload(ProjectMembership.project)
+            ).filter_by(
                 user_id=current_user.id
             ).all()
             projects = sorted([m.project for m in memberships], key=lambda p: p.name.lower())

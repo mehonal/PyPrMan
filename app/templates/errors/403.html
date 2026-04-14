@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Forbidden - PyPrMan{% endblock %}
+{% block content %}
+<div class="pp-empty" style="padding: 80px 24px; text-align: center;">
+    <h2 style="margin-bottom: 8px;">403 - Forbidden</h2>
+    <p style="color: var(--pp-muted);">You don't have permission to access this page.</p>
+    <a href="{{ url_for('main.dashboard') }}" class="pp-btn pp-btn-primary" style="margin-top: 16px;">Go to Dashboard</a>
+</div>
+{% endblock %}
