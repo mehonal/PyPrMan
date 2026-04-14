@@ -90,6 +90,21 @@
     </div>
 </div>
 
+{% if sprint.completed_at and committed_sp > 0 %}
+<div class="pp-card mb-4">
+    <div class="pp-card-body d-flex align-items-center gap-4 flex-wrap" style="padding:12px 16px; font-size:0.8125rem;">
+        <span><strong>Completion:</strong> <span class="pp-sp-badge" style="cursor:default; background:var(--pp-success-subtle, #dcfce7); color:var(--pp-success, #16a34a);">{{ ((completed_sp / committed_sp) * 100)|round|int }}%</span> <span style="color:var(--pp-text-muted);">({{ completed_sp }} / {{ committed_sp }} SP)</span></span>
+        {% if sprint.initial_committed_sp is not none and sprint.initial_committed_sp != committed_sp %}
+        <span><strong>Scope change:</strong>
+            {% set scope_diff = committed_sp - sprint.initial_committed_sp %}
+            <span class="pp-sp-badge" style="cursor:default;{% if scope_diff > 0 %} background:#fef3c7; color:#d97706;{% else %} background:var(--pp-success-subtle, #dcfce7); color:var(--pp-success, #16a34a);{% endif %}">{{ '+' if scope_diff > 0 }}{{ scope_diff }} SP</span>
+            <span style="color:var(--pp-text-muted);">({{ sprint.initial_committed_sp }} &rarr; {{ committed_sp }})</span>
+        </span>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 {% if sprint.start_date %}
 <div class="pp-card mb-4">
     <div class="pp-card-header">Sprint Burndown{% if project %} ({{ project.key }}){% endif %}</div>
@@ -99,12 +114,26 @@
 </div>
 {% endif %}
 
-{% if project_breakdown %}
-<div class="pp-card mb-4">
-    <div class="pp-card-header">SP by Project</div>
-    <div class="pp-card-body" style="position:relative; max-height:250px;">
-        <canvas id="projectBreakdownChart"></canvas>
+{% if project_breakdown or status_breakdown %}
+<div class="row g-4 mb-4">
+    <div class="col-md{% if project_breakdown %}-6{% endif %}">
+        <div class="pp-card" style="height:100%;">
+            <div class="pp-card-header">SP by Status</div>
+            <div class="pp-card-body d-flex justify-content-center" style="position:relative; max-height:250px;">
+                <canvas id="statusBreakdownChart"></canvas>
+            </div>
+        </div>
     </div>
+    {% if project_breakdown %}
+    <div class="col-md-6">
+        <div class="pp-card" style="height:100%;">
+            <div class="pp-card-header">SP by Project</div>
+            <div class="pp-card-body" style="position:relative; max-height:250px;">
+                <canvas id="projectBreakdownChart"></canvas>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endif %}
 
@@ -219,6 +248,35 @@
                     },
                 },
             });
+        });
+    }
+
+    var statusCanvas = document.getElementById('statusBreakdownChart');
+    if (statusCanvas) {
+        var statusData = {{ status_breakdown|tojson }};
+        var categoryColors = {
+            backlog: '#94a3b8',
+            todo: '#60a5fa',
+            in_progress: '#f59e0b',
+            done: '#22c55e',
+        };
+        new Chart(statusCanvas, {
+            type: 'doughnut',
+            data: {
+                labels: statusData.map(function(s) { return s.label; }),
+                datasets: [{
+                    data: statusData.map(function(s) { return s.sp; }),
+                    backgroundColor: statusData.map(function(s) { return categoryColors[s.category]; }),
+                    borderWidth: 2,
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' },
+                },
+            },
         });
     }
 

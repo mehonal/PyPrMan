@@ -157,6 +157,17 @@ def sprint_detail(sprint_id):
                 "current": project is not None and sp_assoc.project_id == project.id,
             })
 
+    # SP by status category
+    sp_by_category = defaultdict(int)
+    for i in items:
+        sp_by_category[i.status.category] += i.story_points or 0
+    status_breakdown = [
+        {"category": "backlog", "label": "Backlog", "sp": sp_by_category.get("backlog", 0)},
+        {"category": "todo", "label": "To Do", "sp": sp_by_category.get("todo", 0)},
+        {"category": "in_progress", "label": "In Progress", "sp": sp_by_category.get("in_progress", 0)},
+        {"category": "done", "label": "Done", "sp": sp_by_category.get("done", 0)},
+    ]
+
     # Scope changes: items added/removed from this sprint
     scope_changes = ActivityLog.query.filter(
         ActivityLog.work_item_id.in_([i.id for i in items]),
@@ -174,6 +185,7 @@ def sprint_detail(sprint_id):
         scope_changes=scope_changes,
         project=project,
         project_breakdown=project_breakdown,
+        status_breakdown=status_breakdown,
     )
 
 
