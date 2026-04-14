@@ -114,8 +114,10 @@
 </div>
 {% endif %}
 
-{% if project_breakdown or status_breakdown %}
+{% set has_status_sp = status_breakdown|map(attribute='sp')|sum > 0 %}
+{% if project_breakdown or has_status_sp %}
 <div class="row g-4 mb-4">
+    {% if has_status_sp %}
     <div class="col-md{% if project_breakdown %}-6{% endif %}">
         <div class="pp-card" style="height:100%;">
             <div class="pp-card-header">SP by Status</div>
@@ -124,8 +126,9 @@
             </div>
         </div>
     </div>
+    {% endif %}
     {% if project_breakdown %}
-    <div class="col-md-6">
+    <div class="col-md{% if has_status_sp %}-6{% endif %}">
         <div class="pp-card" style="height:100%;">
             <div class="pp-card-header">SP by Project</div>
             <div class="pp-card-body" style="position:relative; max-height:250px;">
@@ -255,7 +258,6 @@
     if (statusCanvas) {
         var statusData = {{ status_breakdown|tojson }};
         var categoryColors = {
-            backlog: '#94a3b8',
             todo: '#60a5fa',
             in_progress: '#f59e0b',
             done: '#22c55e',

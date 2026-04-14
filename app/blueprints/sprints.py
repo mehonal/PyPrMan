@@ -162,7 +162,6 @@ def sprint_detail(sprint_id):
     for i in items:
         sp_by_category[i.status.category] += i.story_points or 0
     status_breakdown = [
-        {"category": "backlog", "label": "Backlog", "sp": sp_by_category.get("backlog", 0)},
         {"category": "todo", "label": "To Do", "sp": sp_by_category.get("todo", 0)},
         {"category": "in_progress", "label": "In Progress", "sp": sp_by_category.get("in_progress", 0)},
         {"category": "done", "label": "Done", "sp": sp_by_category.get("done", 0)},

@@ -12,29 +12,137 @@
 {% endblock %}
 
 {% block content %}
+{% if empty %}
+<div class="pp-empty">
+    <i class="bi bi-folder-plus"></i>
+    <p>No projects yet.</p>
+    <a href="{{ url_for('projects.create_project') }}" class="pp-btn pp-btn-primary">Create your first project</a>
+</div>
+{% else %}
+
+{# ── Stat cards ── #}
 <div class="row g-3 mb-4">
-    {% for project in projects %}
-    <div class="col-sm-6 col-md-4 col-xl-3">
-        <a href="{{ url_for('projects.detail', key=project.key) }}" class="pp-stat-card">
-            <div class="d-flex align-items-center gap-2 mb-2">
-                <span class="pp-badge-key">{{ project.key }}</span>
-                <span style="font-weight:600; font-size:0.9375rem;">{{ project.name }}</span>
-            </div>
-            <p style="font-size:0.8125rem; color:var(--pp-text-secondary); margin:0;">{{ project.description[:80] }}{% if project.description|length > 80 %}...{% endif %}</p>
-        </a>
+    <div class="col-6 col-lg-3">
+        <div class="pp-stat-card">
+            <div class="stat-label">Open Items</div>
+            <div class="stat-value">{{ total_open }}</div>
+        </div>
     </div>
-    {% endfor %}
-    {% if not projects %}
-    <div class="col-12">
-        <div class="pp-empty">
-            <i class="bi bi-folder-plus"></i>
-            <p>No projects yet.</p>
-            <a href="{{ url_for('projects.create_project') }}" class="pp-btn pp-btn-primary">Create your first project</a>
+    <div class="col-6 col-lg-3">
+        <div class="pp-stat-card">
+            <div class="stat-label">My Open Items</div>
+            <div class="stat-value" style="color:var(--pp-primary);">{{ my_open_count }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="pp-stat-card">
+            <div class="stat-label">Overdue</div>
+            <div class="stat-value" style="color:{% if overdue_count > 0 %}var(--pp-danger, #dc2626){% else %}var(--pp-success, #16a34a){% endif %};">{{ overdue_count }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="pp-stat-card">
+            <div class="stat-label">Projects</div>
+            <div class="stat-value">{{ projects|length }}</div>
+        </div>
+    </div>
+</div>
+
+{# ── Active sprints ── #}
+{% if sprint_summaries %}
+<div class="pp-card mb-4">
+    <div class="pp-card-header"><i class="bi bi-lightning" style="color:var(--pp-primary);"></i> Active Sprints</div>
+    <div class="pp-card-body" style="padding:12px 16px;">
+        {% for s in sprint_summaries %}
+        <div style="{% if not loop.last %}margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid var(--pp-border);{% endif %}">
+            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                <a href="{{ url_for('sprints.sprint_detail', sprint_id=s.id) }}" style="font-weight:600; font-size:0.875rem; text-decoration:none; color:inherit;">{{ s.name }}</a>
+                {% for key in s.projects %}<span class="pp-badge-key">{{ key }}</span>{% endfor %}
+                <span style="margin-left:auto; font-size:0.8125rem; font-weight:600; color:var(--pp-primary);">{{ s.pct }}%</span>
+            </div>
+            <div class="d-flex align-items-center gap-3" style="font-size:0.75rem; color:var(--pp-text-muted);">
+                <div class="pp-progress-bar" style="flex-grow:1;">
+                    <div class="pp-progress-fill" style="width:{{ s.pct }}%; background:var(--pp-primary);"></div>
+                </div>
+                <span>{{ s.completed }} / {{ s.committed }} SP</span>
+                {% if s.end_date %}
+                {% set days_left = (s.end_date - today).days %}
+                <span style="{% if days_left <= 2 %}color:var(--pp-danger, #dc2626); font-weight:500;{% endif %}">
+                    {% if days_left < 0 %}{{ -days_left }}d overdue{% elif days_left == 0 %}Ends today{% else %}{{ days_left }}d left{% endif %}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{# ── Charts row ── #}
+{% set has_sprint_sp = sprint_status_breakdown|map(attribute='sp')|sum > 0 %}
+{% set has_project_sp = project_sp_breakdown|length > 1 %}
+<div class="row g-4 mb-4">
+    {% if has_sprint_sp %}
+    <div class="col-md-4">
+        <div class="pp-card" style="height:100%;">
+            <div class="pp-card-header">Active Sprint SP</div>
+            <div class="pp-card-body d-flex justify-content-center" style="position:relative; max-height:250px;">
+                <canvas id="sprintStatusChart"></canvas>
+            </div>
         </div>
     </div>
     {% endif %}
+    {% if has_project_sp %}
+    <div class="col-md-{% if has_sprint_sp %}4{% else %}5{% endif %}">
+        <div class="pp-card" style="height:100%;">
+            <div class="pp-card-header">SP by Project</div>
+            <div class="pp-card-body d-flex justify-content-center" style="position:relative; max-height:250px;">
+                <canvas id="projectSpChart"></canvas>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    <div class="col-md-{% if has_sprint_sp and has_project_sp %}4{% elif has_sprint_sp %}8{% elif has_project_sp %}7{% else %}12{% endif %}">
+        <div class="pp-card" style="height:100%;">
+            <div class="pp-card-header">Velocity</div>
+            <div class="pp-card-body" style="position:relative; max-height:250px;">
+                <canvas id="velocityChart"></canvas>
+            </div>
+        </div>
+    </div>
 </div>
 
+{# ── Due soon ── #}
+{% if due_soon_items %}
+<div class="pp-card mb-4">
+    <div class="pp-card-header">
+        <i class="bi bi-calendar-event" style="color:var(--pp-warning, #d97706);"></i> Due Soon
+        <span class="pp-badge pp-badge-muted" style="margin-left:auto;">{{ due_soon_items|length }}</span>
+    </div>
+    <div class="pp-card-body p-0">
+        {% for item in due_soon_items %}
+        <a href="{{ url_for('work_items.detail', key=item.project.key, item_key=item.item_key) }}" class="pp-list-item">
+            <span class="item-key">{{ item.item_key }}</span>
+            <i class="{{ item.item_type.icon }}" style="color:{{ item.item_type.color }}; font-size:0.875rem;"></i>
+            <span class="item-title">{{ item.title }}</span>
+            <span class="item-meta">
+                <span class="pp-status-dot" style="background:{{ item.status.color }}" title="{{ item.status.name }}"></span>
+                {% if item.due_date < today %}
+                <span style="font-size:0.6875rem; color:var(--pp-danger, #dc2626); font-weight:600;">{{ item.due_date.strftime('%b %d') }} (overdue)</span>
+                {% elif item.due_date == today %}
+                <span style="font-size:0.6875rem; color:var(--pp-warning, #d97706); font-weight:600;">Today</span>
+                {% else %}
+                <span style="font-size:0.6875rem; color:var(--pp-text-muted);">{{ item.due_date.strftime('%b %d') }}</span>
+                {% endif %}
+                {% if item.assignee %}<span style="font-size:0.6875rem; color:var(--pp-text-muted);">{{ item.assignee.display_name }}</span>{% endif %}
+            </span>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{# ── My items + Recent activity ── #}
 <div class="row g-4">
     <div class="col-lg-6">
         <div class="pp-card">
@@ -87,4 +195,100 @@
         </div>
     </div>
 </div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if not empty %}
+<script src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
+<script>
+(function() {
+    // Active sprint SP by status
+    var sprintStatusCanvas = document.getElementById('sprintStatusChart');
+    if (sprintStatusCanvas) {
+        var statusData = {{ sprint_status_breakdown|tojson }};
+        var categoryColors = { todo: '#60a5fa', in_progress: '#f59e0b', done: '#22c55e' };
+        new Chart(sprintStatusCanvas, {
+            type: 'doughnut',
+            data: {
+                labels: statusData.map(function(s) { return s.label + ' (' + s.sp + ' SP)'; }),
+                datasets: [{
+                    data: statusData.map(function(s) { return s.sp; }),
+                    backgroundColor: statusData.map(function(s) { return categoryColors[s.category]; }),
+                    borderWidth: 2,
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } },
+            },
+        });
+    }
+
+    // SP by project
+    var projectSpCanvas = document.getElementById('projectSpChart');
+    if (projectSpCanvas) {
+        var projData = {{ project_sp_breakdown|tojson }};
+        var palette = ['#4f46e5', '#818cf8', '#a5b4fc', '#c7d2fe', '#e0e7ff'];
+        new Chart(projectSpCanvas, {
+            type: 'doughnut',
+            data: {
+                labels: projData.map(function(p) { return p.key + ' (' + p.sp + ' SP)'; }),
+                datasets: [{
+                    data: projData.map(function(p) { return p.sp; }),
+                    backgroundColor: projData.map(function(_, i) { return palette[i % palette.length]; }),
+                    borderWidth: 2,
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } },
+            },
+        });
+    }
+
+    // Velocity chart
+    api.get('/api/velocity').then(function(data) {
+        if (!data.sprints || data.sprints.length === 0) {
+            var card = document.getElementById('velocityChart');
+            if (card) card.parentElement.innerHTML = '<div class="pp-empty" style="padding:32px;"><p style="margin:0; font-size:0.8125rem;">No completed sprints yet.</p></div>';
+            return;
+        }
+        var canvas = document.getElementById('velocityChart');
+        new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: data.sprints.map(function(s) { return s.name; }),
+                datasets: [
+                    {
+                        label: 'Committed',
+                        data: data.sprints.map(function(s) { return s.committed; }),
+                        backgroundColor: '#c7d2fe',
+                        borderColor: '#4f46e5',
+                        borderWidth: 1,
+                    },
+                    {
+                        label: 'Completed',
+                        data: data.sprints.map(function(s) { return s.completed; }),
+                        backgroundColor: '#4f46e5',
+                        borderColor: '#3730a3',
+                        borderWidth: 1,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } },
+                scales: {
+                    y: { beginAtZero: true, title: { display: true, text: 'Story Points' } },
+                },
+            },
+        });
+    });
+})();
+</script>
+{% endif %}
 {% endblock %}
