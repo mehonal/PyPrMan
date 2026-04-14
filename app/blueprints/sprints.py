@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
@@ -66,13 +67,32 @@ def project_sprints(key):
         .order_by(Sprint.start_date.desc().nullslast(), Sprint.id.desc())
         .all()
     )
+    done_status_names = {
+        s.name for s in Status.query.filter_by(
+            project_id=project.id, category="done"
+        ).all()
+    }
+
+    # Per-project stats for sprint list badges
+    sprint_stats = {}
+    for s in sprints:
+        proj_items = [i for i in s.work_items if i.project_id == project.id]
+        sprint_stats[s.id] = {
+            "item_count": len(proj_items),
+            "committed_sp": sum(i.story_points or 0 for i in proj_items),
+            "completed_sp": sum(
+                i.story_points or 0 for i in proj_items
+                if i.status.name in done_status_names
+            ),
+        }
+
     completed_sprints = [
-        s for s in sprints if s.completed_sp_snapshot is not None
+        s for s in sprints if s.completed_at is not None
     ][:5]
     avg_velocity = None
     if completed_sprints:
         avg_velocity = round(
-            sum(s.completed_sp_snapshot for s in completed_sprints)
+            sum(sprint_stats[s.id]["completed_sp"] for s in completed_sprints)
             / len(completed_sprints)
         )
     return render_template(
@@ -81,6 +101,7 @@ def project_sprints(key):
         avg_velocity=avg_velocity,
         velocity_sprint_count=len(completed_sprints),
         project=project,
+        sprint_stats=sprint_stats,
     )
 
 
@@ -88,7 +109,7 @@ def project_sprints(key):
 @auth_required()
 def sprint_detail(sprint_id):
     sprint = Sprint.query.options(
-        db.selectinload(Sprint.sprint_projects),
+        db.selectinload(Sprint.sprint_projects).joinedload(SprintProject.project),
         db.selectinload(Sprint.work_items)
         .joinedload(WorkItem.status),
         db.selectinload(Sprint.work_items)
@@ -104,12 +125,37 @@ def sprint_detail(sprint_id):
     if not membership:
         abort(403)
 
-    items = sprint.work_items
+    all_items = sprint.work_items
+
+    # Per-project filtering
+    project_key = request.args.get("project")
+    project = None
+    if project_key:
+        project = Project.query.filter_by(key=project_key.upper()).first()
+    if project:
+        items = [i for i in all_items if i.project_id == project.id]
+    else:
+        items = all_items
+
     completed_items = [i for i in items if i.status.category == "done"]
     carryover_items = [i for i in items if i.status.category != "done"] if sprint.completed_at else []
 
     committed_sp = sum(i.story_points or 0 for i in items)
     completed_sp = sum(i.story_points or 0 for i in completed_items)
+
+    # Project SP breakdown for multi-project sprints
+    project_breakdown = []
+    if len(sprint.sprint_projects) > 1:
+        sp_by_project = defaultdict(int)
+        for i in all_items:
+            sp_by_project[i.project_id] += i.story_points or 0
+        for sp_assoc in sprint.sprint_projects:
+            project_breakdown.append({
+                "key": sp_assoc.project.key,
+                "name": sp_assoc.project.name,
+                "sp": sp_by_project.get(sp_assoc.project_id, 0),
+                "current": project is not None and sp_assoc.project_id == project.id,
+            })
 
     # Scope changes: items added/removed from this sprint
     scope_changes = ActivityLog.query.filter(
@@ -126,6 +172,8 @@ def sprint_detail(sprint_id):
         committed_sp=committed_sp,
         completed_sp=completed_sp,
         scope_changes=scope_changes,
+        project=project,
+        project_breakdown=project_breakdown,
     )
 
 

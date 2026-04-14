@@ -407,7 +407,13 @@ def sprint_burndown(sprint_id):
     if not membership:
         abort(403)
 
-    items = sprint.work_items
+    all_items = sprint.work_items
+    project_id = request.args.get("project_id", type=int)
+    if project_id:
+        items = [i for i in all_items if i.project_id == project_id]
+    else:
+        items = all_items
+
     if not items or not sprint.start_date:
         return jsonify({"dates": [], "ideal": [], "actual": []})
 
@@ -436,7 +442,8 @@ def sprint_burndown(sprint_id):
 
     # Get all done status names from project statuses
     done_status_names = set()
-    for pid in sprint_project_ids:
+    filter_pids = [project_id] if project_id else sprint_project_ids
+    for pid in filter_pids:
         from app.models.status import Status as StatusModel
         for s in StatusModel.query.filter_by(project_id=pid, category="done").all():
             done_status_names.add(s.name)
@@ -481,7 +488,9 @@ def sprint_burndown(sprint_id):
 @auth_required()
 def velocity_data():
     project_ids = _user_project_ids()
-    completed_sprints = (
+    filter_project_id = request.args.get("project_id", type=int)
+
+    query = (
         Sprint.query.join(SprintProject)
         .filter(
             SprintProject.project_id.in_(project_ids),
@@ -490,19 +499,45 @@ def velocity_data():
         .distinct()
         .order_by(Sprint.completed_at.desc())
         .limit(10)
-        .all()
     )
-    return jsonify({
-        "sprints": [
-            {
+    if filter_project_id:
+        query = query.options(
+            db.selectinload(Sprint.work_items).joinedload(WorkItem.status),
+        )
+    completed_sprints = query.all()
+
+    results = []
+    done_status_names = None
+    if filter_project_id:
+        done_status_names = {
+            s.name for s in Status.query.filter_by(
+                project_id=filter_project_id, category="done"
+            ).all()
+        }
+
+    for s in reversed(completed_sprints):
+        if filter_project_id:
+            proj_items = [i for i in s.work_items if i.project_id == filter_project_id]
+            committed = sum(i.story_points or 0 for i in proj_items)
+            completed = sum(
+                i.story_points or 0 for i in proj_items
+                if i.status.name in done_status_names
+            )
+            results.append({
+                "name": s.name,
+                "initial": None,
+                "committed": committed,
+                "completed": completed,
+            })
+        else:
+            results.append({
                 "name": s.name,
                 "initial": s.initial_committed_sp,
                 "committed": s.committed_sp_snapshot or 0,
                 "completed": s.completed_sp_snapshot or 0,
-            }
-            for s in reversed(completed_sprints)
-        ]
-    })
+            })
+
+    return jsonify({"sprints": results})
 
 
 @api_bp.route("/epics/<int:epic_id>/burndown")

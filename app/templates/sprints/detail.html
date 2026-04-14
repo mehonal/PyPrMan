@@ -3,7 +3,12 @@
 {% block breadcrumb %}
 <ol class="breadcrumb mb-0">
     <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+    {% if project %}
+    <li class="breadcrumb-item"><a href="{{ url_for('projects.detail', key=project.key) }}">{{ project.key }}</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('sprints.project_sprints', key=project.key) }}">Sprints</a></li>
+    {% else %}
     <li class="breadcrumb-item"><a href="{{ url_for('sprints.list_sprints') }}">Sprints</a></li>
+    {% endif %}
     <li class="breadcrumb-item active">{{ sprint.name }}</li>
 </ol>
 {% endblock %}
@@ -24,6 +29,7 @@
     <h1 style="font-size:1.25rem; margin:0;">{{ sprint.name }}</h1>
     {% if sprint.is_active %}<span class="pp-badge pp-badge-primary">Active</span>{% endif %}
     {% if sprint.completed_at %}<span class="pp-badge pp-badge-muted">Completed {{ sprint.completed_at.strftime('%b %d, %Y') }}</span>{% endif %}
+    {% if project %}<span class="pp-badge-key">{{ project.key }}</span>{% endif %}
     {% if sprint.start_date %}
     <span style="font-size:0.8125rem; color:var(--pp-text-muted);">
         <i class="bi bi-calendar"></i> {{ sprint.start_date.strftime('%b %d') }}{% if sprint.end_date %} - {{ sprint.end_date.strftime('%b %d, %Y') }}{% endif %}
@@ -86,9 +92,18 @@
 
 {% if sprint.start_date %}
 <div class="pp-card mb-4">
-    <div class="pp-card-header">Sprint Burndown</div>
+    <div class="pp-card-header">Sprint Burndown{% if project %} ({{ project.key }}){% endif %}</div>
     <div class="pp-card-body" style="position:relative; max-height:350px;">
         <canvas id="burndownChart"></canvas>
+    </div>
+</div>
+{% endif %}
+
+{% if project_breakdown %}
+<div class="pp-card mb-4">
+    <div class="pp-card-header">SP by Project</div>
+    <div class="pp-card-body" style="position:relative; max-height:250px;">
+        <canvas id="projectBreakdownChart"></canvas>
     </div>
 </div>
 {% endif %}
@@ -163,45 +178,84 @@
 <script>
 (function() {
     var sprintId = {{ sprint.id }};
-    var canvas = document.getElementById('burndownChart');
-    if (!canvas) return;
+    var projectId = {{ project.id if project else 'null' }};
+    var burndownUrl = '/api/sprints/' + sprintId + '/burndown';
+    if (projectId) burndownUrl += '?project_id=' + projectId;
 
-    api.get('/api/sprints/' + sprintId + '/burndown').then(function(data) {
-        if (!data.dates || data.dates.length === 0) return;
-        new Chart(canvas, {
-            type: 'line',
+    var canvas = document.getElementById('burndownChart');
+    if (canvas) {
+        api.get(burndownUrl).then(function(data) {
+            if (!data.dates || data.dates.length === 0) return;
+            new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels: data.dates,
+                    datasets: [
+                        {
+                            label: 'Ideal',
+                            data: data.ideal,
+                            borderColor: '#94a3b8',
+                            borderDash: [6, 4],
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            fill: false,
+                        },
+                        {
+                            label: 'Actual',
+                            data: data.actual,
+                            borderColor: '#4f46e5',
+                            borderWidth: 2,
+                            pointRadius: 2,
+                            fill: false,
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: 'Story Points' } },
+                    },
+                },
+            });
+        });
+    }
+
+    {% if project_breakdown %}
+    var breakdownCanvas = document.getElementById('projectBreakdownChart');
+    if (breakdownCanvas) {
+        var breakdown = {{ project_breakdown|tojson }};
+        var colors = breakdown.map(function(p) {
+            return p.current ? '#4f46e5' : '#c7d2fe';
+        });
+        var borderColors = breakdown.map(function(p) {
+            return p.current ? '#3730a3' : '#818cf8';
+        });
+        new Chart(breakdownCanvas, {
+            type: 'bar',
             data: {
-                labels: data.dates,
-                datasets: [
-                    {
-                        label: 'Ideal',
-                        data: data.ideal,
-                        borderColor: '#94a3b8',
-                        borderDash: [6, 4],
-                        borderWidth: 2,
-                        pointRadius: 0,
-                        fill: false,
-                    },
-                    {
-                        label: 'Actual',
-                        data: data.actual,
-                        borderColor: '#4f46e5',
-                        borderWidth: 2,
-                        pointRadius: 2,
-                        fill: false,
-                    },
-                ],
+                labels: breakdown.map(function(p) { return p.key; }),
+                datasets: [{
+                    label: 'Story Points',
+                    data: breakdown.map(function(p) { return p.sp; }),
+                    backgroundColor: colors,
+                    borderColor: borderColors,
+                    borderWidth: 1,
+                }],
             },
             options: {
+                indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom' } },
+                plugins: { legend: { display: false } },
                 scales: {
-                    y: { beginAtZero: true, title: { display: true, text: 'Story Points' } },
+                    x: { beginAtZero: true, title: { display: true, text: 'Story Points' } },
                 },
             },
         });
-    });
+    }
+    {% endif %}
 })();
 </script>
 {% endblock %}
