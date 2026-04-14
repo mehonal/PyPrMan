@@ -226,7 +226,9 @@ def edit_sprint(sprint_id):
 @sprints_bp.route("/<int:sprint_id>/start", methods=["POST"])
 @auth_required()
 def start_sprint(sprint_id):
-    sprint = Sprint.query.get_or_404(sprint_id)
+    sprint = Sprint.query.options(
+        db.selectinload(Sprint.work_items),
+    ).get_or_404(sprint_id)
     sprint_project_ids = [sp.project_id for sp in sprint.sprint_projects]
     membership = ProjectMembership.query.filter(
         ProjectMembership.user_id == current_user.id,
@@ -234,6 +236,9 @@ def start_sprint(sprint_id):
     ).first()
     if not membership:
         abort(403)
+    sprint.initial_committed_sp = sum(
+        i.story_points or 0 for i in sprint.work_items
+    )
     sprint.is_active = True
     db.session.commit()
     flash("Sprint started.", "success")

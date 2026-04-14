@@ -40,7 +40,17 @@
 {% endif %}
 
 <div class="row g-4 mb-4">
-    <div class="col-sm-6 col-lg-3">
+    {% if sprint.initial_committed_sp is not none %}
+    <div class="col-sm-6 col-lg">
+        <div class="pp-card">
+            <div class="pp-card-body text-center" style="padding:16px;">
+                <div style="font-size:1.5rem; font-weight:700; color:var(--pp-text-muted);">{{ sprint.initial_committed_sp }}</div>
+                <div style="font-size:0.75rem; color:var(--pp-text-muted);">Initial SP</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    <div class="col-sm-6 col-lg">
         <div class="pp-card">
             <div class="pp-card-body text-center" style="padding:16px;">
                 <div style="font-size:1.5rem; font-weight:700; color:var(--pp-primary);">{{ committed_sp }}</div>
@@ -48,7 +58,7 @@
             </div>
         </div>
     </div>
-    <div class="col-sm-6 col-lg-3">
+    <div class="col-sm-6 col-lg">
         <div class="pp-card">
             <div class="pp-card-body text-center" style="padding:16px;">
                 <div style="font-size:1.5rem; font-weight:700; color:var(--pp-success, #16a34a);">{{ completed_sp }}</div>
@@ -56,7 +66,7 @@
             </div>
         </div>
     </div>
-    <div class="col-sm-6 col-lg-3">
+    <div class="col-sm-6 col-lg">
         <div class="pp-card">
             <div class="pp-card-body text-center" style="padding:16px;">
                 <div style="font-size:1.5rem; font-weight:700;">{{ items|length }}</div>
@@ -64,7 +74,7 @@
             </div>
         </div>
     </div>
-    <div class="col-sm-6 col-lg-3">
+    <div class="col-sm-6 col-lg">
         <div class="pp-card">
             <div class="pp-card-body text-center" style="padding:16px;">
                 <div style="font-size:1.5rem; font-weight:700; color:var(--pp-warning, #d97706);">{{ carryover_items|length }}</div>

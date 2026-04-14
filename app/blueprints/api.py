@@ -496,6 +496,7 @@ def velocity_data():
         "sprints": [
             {
                 "name": s.name,
+                "initial": s.initial_committed_sp,
                 "committed": s.committed_sp_snapshot or 0,
                 "completed": s.completed_sp_snapshot or 0,
             }

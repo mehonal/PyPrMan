@@ -65,6 +65,7 @@
         <strong><i class="bi bi-lightning" style="color:var(--pp-primary);"></i> {{ active_sprint.name }}</strong>
         {% if active_sprint.goal %}<span class="pp-goal-text">{{ active_sprint.goal }}</span>{% endif %}
         <span style="margin-left:auto;" class="d-flex gap-3">
+            {% if active_sprint.initial_committed_sp is not none %}<span class="pp-sp-badge" style="cursor:default;" title="Initial commitment">{{ active_sprint.initial_committed_sp }} initial</span>{% endif %}
             <span class="pp-sp-badge" style="cursor:default;" title="Committed">{{ active_sprint.committed_sp }} SP committed</span>
             <span class="pp-sp-badge" style="cursor:default; background:var(--pp-success-subtle, #dcfce7); color:var(--pp-success, #16a34a);" title="Completed">{{ active_sprint.completed_sp }} done</span>
         </span>

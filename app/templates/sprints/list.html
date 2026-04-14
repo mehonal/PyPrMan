@@ -56,6 +56,9 @@
             <span style="font-size:0.75rem; color:var(--pp-text-muted);"><i class="bi bi-calendar"></i> {{ sprint.start_date.strftime('%b %d') }}{% if sprint.end_date %} - {{ sprint.end_date.strftime('%b %d, %Y') }}{% endif %}</span>
             {% endif %}
             <span style="font-size:0.75rem; color:var(--pp-text-muted);">{{ sprint.work_items|length }} items</span>
+            {% if sprint.initial_committed_sp is not none %}
+            <span class="pp-sp-badge" style="cursor:default;" title="Initial commitment">{{ sprint.initial_committed_sp }} initial</span>
+            {% endif %}
             {% if sprint.completed_sp_snapshot is not none %}
             <span class="pp-sp-badge" style="cursor:default;">{{ sprint.committed_sp_snapshot }} SP</span>
             <span class="pp-sp-badge" style="cursor:default; background:var(--pp-success-subtle, #dcfce7); color:var(--pp-success, #16a34a);">{{ sprint.completed_sp_snapshot }} done</span>
@@ -113,6 +116,13 @@
             data: {
                 labels: data.sprints.map(function(s) { return s.name; }),
                 datasets: [
+                    data.sprints.some(function(s) { return s.initial != null; }) ? {
+                        label: 'Initial',
+                        data: data.sprints.map(function(s) { return s.initial; }),
+                        backgroundColor: '#e0e7ff',
+                        borderColor: '#818cf8',
+                        borderWidth: 1,
+                    } : null,
                     {
                         label: 'Committed',
                         data: data.sprints.map(function(s) { return s.committed; }),
@@ -127,7 +137,7 @@
                         borderColor: '#3730a3',
                         borderWidth: 1,
                     },
-                ],
+                ].filter(Boolean),
             },
             options: {
                 responsive: true,

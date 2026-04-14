@@ -22,6 +22,7 @@ class Sprint(db.Model):
     created_by_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     completed_at = db.Column(db.DateTime)
+    initial_committed_sp = db.Column(db.Integer)
     committed_sp_snapshot = db.Column(db.Integer)
     completed_sp_snapshot = db.Column(db.Integer)
 
