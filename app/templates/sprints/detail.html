@@ -138,7 +138,7 @@
         {% for log in scope_changes %}
         <div style="padding:4px 0; font-size:0.8125rem; color:var(--pp-text-secondary);{% if not loop.last %} border-bottom:1px solid var(--pp-border);{% endif %}">
             <strong>{{ log.user.display_name }}</strong>
-            changed sprint for <em>{{ log.work_item.item_key }}</em>
+            changed sprint for <em>{{ log.work_item.item_key }}</em>{% if log.work_item.story_points is not none %} <span class="pp-sp-badge" style="font-size:0.6875rem;">{{ log.work_item.story_points }}</span>{% endif %}
             {% if log.old_value %}from <span style="text-decoration:line-through;">{{ log.old_value }}</span>{% endif %}
             to <strong>{{ log.new_value }}</strong>
             <span style="margin-left:8px; color:var(--pp-text-muted); font-size:0.75rem;">{{ log.created_at.strftime('%b %d, %Y %H:%M') }}</span>
