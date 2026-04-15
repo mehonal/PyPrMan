@@ -9,7 +9,7 @@ from app.models.project import Project, ProjectMembership
 from app.models.sprint import Sprint, SprintProject
 from app.models.status import Status
 from app.models.work_item import WorkItem
-from app.blueprints.helpers import user_project_ids as _user_project_ids
+from app.blueprints.helpers import user_project_ids as user_project_ids, sprint_sp_stats
 
 board_bp = Blueprint("board", __name__)
 
@@ -63,6 +63,10 @@ def project_board(key):
             "work_items": [i for i in items if i.status_id == s.id],
         }
 
+    sprint_sp = {}
+    if active_sprint:
+        sprint_sp = sprint_sp_stats([active_sprint.id], [project.id])
+
     epics = Epic.query.filter_by(project_id=project.id).order_by(Epic.name).all()
     labels = Label.query.filter_by(project_id=project.id).order_by(Label.name).all()
 
@@ -75,6 +79,7 @@ def project_board(key):
         is_aggregated=False,
         sprint_filter_active=sprint_filter_active,
         active_sprint=active_sprint,
+        sprint_sp=sprint_sp,
         epics=epics,
         filter_epic_id=filter_epic_id,
         labels=labels,
@@ -86,7 +91,7 @@ def project_board(key):
 @board_bp.route("/board")
 @auth_required()
 def aggregated_board():
-    project_ids = _user_project_ids()
+    project_ids = user_project_ids()
     projects = Project.query.filter(Project.id.in_(project_ids)).all()
 
     filter_project_id = request.args.get("project_id", type=int)
@@ -150,6 +155,10 @@ def aggregated_board():
 
     sorted_columns = {k: columns[k] for k in category_order if k in columns}
 
+    sprint_sp = {}
+    if active_sprint and active_sprint is not True:
+        sprint_sp = sprint_sp_stats([active_sprint.id], filtered_ids)
+
     epics = (
         Epic.query.filter(Epic.project_id.in_(filtered_ids))
         .order_by(Epic.name)
@@ -172,6 +181,7 @@ def aggregated_board():
         filter_project_id=filter_project_id,
         sprint_filter_active=sprint_filter_active,
         active_sprint=active_sprint,
+        sprint_sp=sprint_sp,
         epics=epics,
         filter_epic_id=filter_epic_id,
         labels=labels,
@@ -229,7 +239,7 @@ def story_map(key):
 @board_bp.route("/storymap")
 @auth_required()
 def aggregated_story_map():
-    project_ids = _user_project_ids()
+    project_ids = user_project_ids()
     projects = Project.query.filter(Project.id.in_(project_ids)).all()
 
     filter_project_id = request.args.get("project_id", type=int)

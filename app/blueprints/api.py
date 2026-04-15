@@ -12,7 +12,7 @@ from app.models.sprint import Sprint, SprintProject
 from app.models.status import Status
 from app.models.link import LINK_REVERSE, LINK_TYPES, WorkItemLink
 from app.models.work_item import WorkItem
-from app.blueprints.helpers import get_project as _get_project, user_project_ids as _user_project_ids
+from app.blueprints.helpers import get_project as _get_project, user_project_ids as user_project_ids
 from app.validation import (
     validate_hex_color,
     validate_icon_class,
@@ -40,7 +40,7 @@ def search():
     if not q or len(q) < 2:
         return jsonify({"results": []})
 
-    project_ids = _user_project_ids()
+    project_ids = user_project_ids()
     if not project_ids:
         return jsonify({"results": []})
 
@@ -197,7 +197,7 @@ def create_sprint():
         return jsonify({"error": "Name is required"}), 400
 
     project_ids = data.get("project_ids", [])
-    user_pids = _user_project_ids()
+    user_pids = user_project_ids()
     if not project_ids or not all(pid in user_pids for pid in project_ids):
         return jsonify({"error": "Invalid project selection"}), 400
 
@@ -487,7 +487,7 @@ def sprint_burndown(sprint_id):
 @api_bp.route("/velocity")
 @auth_required()
 def velocity_data():
-    project_ids = _user_project_ids()
+    project_ids = user_project_ids()
     filter_project_id = request.args.get("project_id", type=int)
 
     query = (
@@ -694,7 +694,7 @@ def bulk_update():
         .options(db.joinedload(WorkItem.status), db.joinedload(WorkItem.assignee))
         .all()
     )
-    user_pids = set(_user_project_ids())
+    user_pids = set(user_project_ids())
 
     # Pre-fetch status-by-name lookup per project if cross-project status change
     status_name = changes.get("status_name")
@@ -822,7 +822,7 @@ def bulk_delete():
         return jsonify({"error": "item_ids required"}), 400
 
     items = WorkItem.query.filter(WorkItem.id.in_(item_ids)).all()
-    user_pids = set(_user_project_ids())
+    user_pids = set(user_project_ids())
     deleted = 0
     for item in items:
         if item.project_id in user_pids:

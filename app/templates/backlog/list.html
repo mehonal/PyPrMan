@@ -73,12 +73,14 @@
         <span class="pp-goal-text" title="{{ sprint.goal }}">{{ sprint.goal }}</span>
         {% endif %}
         <span class="pp-badge pp-badge-muted" style="margin-left:auto;">{{ sprint_items.get(sprint.id, [])|length }} items</span>
-        {% set sp_committed = sprint.committed_sp %}
-        {% if sprint.initial_committed_sp is not none %}
+        {% set sp = sprint_sp.get(sprint.id, {}) %}
+        {% set sp_committed = sp.get('committed_sp', 0) %}
+        {% set sp_completed = sp.get('completed_sp', 0) %}
+        {% if not project and sprint.initial_committed_sp is not none %}
         <span class="pp-sp-badge" style="cursor:default;" title="Initial commitment">{{ sprint.initial_committed_sp }} initial</span>
         {% endif %}
         {% if sp_committed %}
-        <span class="pp-sp-badge" style="cursor:default;" title="Story points: {{ sprint.completed_sp }} done / {{ sp_committed }} committed">{{ sp_committed }} SP{% if sprint.completed_sp %} ({{ sprint.completed_sp }} done){% endif %}</span>
+        <span class="pp-sp-badge" style="cursor:default;" title="Story points: {{ sp_completed }} done / {{ sp_committed }} committed">{{ sp_committed }} SP{% if sp_completed %} ({{ sp_completed }} done){% endif %}</span>
         {% endif %}
     </div>
     <div class="pp-card-body p-0" data-backlog-group="{{ sprint.id }}">

@@ -10,7 +10,7 @@ from app.models.project import Project, ProjectMembership
 from app.models.sprint import Sprint, SprintProject
 from app.models.status import Status
 from app.models.work_item import WorkItem
-from app.blueprints.helpers import user_project_ids as _user_project_ids
+from app.blueprints.helpers import user_project_ids as user_project_ids
 
 sprints_bp = Blueprint("sprints", __name__, url_prefix="/sprints")
 
@@ -18,7 +18,7 @@ sprints_bp = Blueprint("sprints", __name__, url_prefix="/sprints")
 @sprints_bp.route("/")
 @auth_required()
 def list_sprints():
-    project_ids = _user_project_ids()
+    project_ids = user_project_ids()
     sprints = (
         Sprint.query.join(SprintProject)
         .filter(SprintProject.project_id.in_(project_ids))
@@ -191,7 +191,7 @@ def sprint_detail(sprint_id):
 @sprints_bp.route("/new", methods=["GET", "POST"])
 @auth_required()
 def create_sprint():
-    project_ids = _user_project_ids()
+    project_ids = user_project_ids()
     projects = Project.query.filter(Project.id.in_(project_ids)).all()
 
     if request.method == "POST":
@@ -249,7 +249,7 @@ def edit_sprint(sprint_id):
         abort(403)
     if not any(m.role in ("owner", "admin") for m in user_memberships):
         abort(403)
-    project_ids = _user_project_ids()
+    project_ids = user_project_ids()
 
     projects = Project.query.filter(Project.id.in_(project_ids)).all()
 

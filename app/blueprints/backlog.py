@@ -8,7 +8,7 @@ from app.models.label import Label
 from app.models.project import Project, ProjectMembership
 from app.models.sprint import Sprint, SprintProject
 from app.models.work_item import WorkItem
-from app.blueprints.helpers import user_project_ids as _user_project_ids
+from app.blueprints.helpers import user_project_ids as user_project_ids, sprint_sp_stats
 
 backlog_bp = Blueprint("backlog", __name__)
 
@@ -66,6 +66,8 @@ def project_backlog(key):
         elif not item.sprint_id:
             no_sprint_items.append(item)
 
+    sprint_sp = sprint_sp_stats(sprint_ids, [project.id])
+
     epics = Epic.query.filter_by(project_id=project.id).order_by(Epic.name).all()
     labels = Label.query.filter_by(project_id=project.id).order_by(Label.name).all()
 
@@ -76,6 +78,7 @@ def project_backlog(key):
         sprints=sprints,
         sprint_items=sprint_items,
         no_sprint_items=no_sprint_items,
+        sprint_sp=sprint_sp,
         is_aggregated=False,
         epics=epics,
         filter_epic_id=filter_epic_id,
@@ -89,7 +92,7 @@ def project_backlog(key):
 @backlog_bp.route("/backlog")
 @auth_required()
 def aggregated_backlog():
-    project_ids = _user_project_ids()
+    project_ids = user_project_ids()
     projects = Project.query.filter(Project.id.in_(project_ids)).all()
 
     filter_project_id = request.args.get("project_id", type=int)
@@ -144,6 +147,8 @@ def aggregated_backlog():
         elif not item.sprint_id:
             no_sprint_items.append(item)
 
+    sprint_sp = sprint_sp_stats(sprint_ids, filtered_ids)
+
     epics = (
         Epic.query.filter(Epic.project_id.in_(filtered_ids))
         .order_by(Epic.name)
@@ -163,6 +168,7 @@ def aggregated_backlog():
         sprints=sprints,
         sprint_items=sprint_items,
         no_sprint_items=no_sprint_items,
+        sprint_sp=sprint_sp,
         is_aggregated=True,
         filter_project_id=filter_project_id,
         epics=epics,

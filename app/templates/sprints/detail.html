@@ -46,7 +46,7 @@
 {% endif %}
 
 <div class="row g-4 mb-4">
-    {% if sprint.initial_committed_sp is not none %}
+    {% if not project and sprint.initial_committed_sp is not none %}
     <div class="col-sm-6 col-lg">
         <div class="pp-card">
             <div class="pp-card-body text-center" style="padding:16px;">
@@ -94,7 +94,7 @@
 <div class="pp-card mb-4">
     <div class="pp-card-body d-flex align-items-center gap-4 flex-wrap" style="padding:12px 16px; font-size:0.8125rem;">
         <span><strong>Completion:</strong> <span class="pp-sp-badge" style="cursor:default; background:var(--pp-success-subtle, #dcfce7); color:var(--pp-success, #16a34a);">{{ ((completed_sp / committed_sp) * 100)|round|int }}%</span> <span style="color:var(--pp-text-muted);">({{ completed_sp }} / {{ committed_sp }} SP)</span></span>
-        {% if sprint.initial_committed_sp is not none and sprint.initial_committed_sp != committed_sp %}
+        {% if not project and sprint.initial_committed_sp is not none and sprint.initial_committed_sp != committed_sp %}
         <span><strong>Scope change:</strong>
             {% set scope_diff = committed_sp - sprint.initial_committed_sp %}
             <span class="pp-sp-badge" style="cursor:default;{% if scope_diff > 0 %} background:#fef3c7; color:#d97706;{% else %} background:var(--pp-success-subtle, #dcfce7); color:var(--pp-success, #16a34a);{% endif %}">{{ '+' if scope_diff > 0 }}{{ scope_diff }} SP</span>

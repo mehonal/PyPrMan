@@ -1,7 +1,10 @@
 from flask import abort
 from flask_security import current_user
 
+from app.extensions import db
 from app.models.project import Project, ProjectMembership
+from app.models.status import Status
+from app.models.work_item import WorkItem
 
 
 def get_project(key):
@@ -19,3 +22,38 @@ def user_project_ids():
         m.project_id
         for m in ProjectMembership.query.filter_by(user_id=current_user.id).all()
     ]
+
+
+def sprint_sp_stats(sprint_ids, project_ids):
+    """Compute committed/completed SP per sprint filtered by project(s).
+
+    Returns {sprint_id: {"committed_sp": int, "completed_sp": int}}.
+    """
+    if not sprint_ids:
+        return {}
+    rows = (
+        db.session.query(
+            WorkItem.sprint_id,
+            db.func.coalesce(db.func.sum(WorkItem.story_points), 0),
+            db.func.coalesce(
+                db.func.sum(
+                    db.case(
+                        (Status.category == "done", WorkItem.story_points),
+                        else_=0,
+                    )
+                ),
+                0,
+            ),
+        )
+        .join(Status, WorkItem.status_id == Status.id)
+        .filter(
+            WorkItem.sprint_id.in_(sprint_ids),
+            WorkItem.project_id.in_(project_ids),
+        )
+        .group_by(WorkItem.sprint_id)
+        .all()
+    )
+    return {
+        row[0]: {"committed_sp": row[1], "completed_sp": row[2]}
+        for row in rows
+    }
