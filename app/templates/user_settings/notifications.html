@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Notification Settings - PyPrMan{% endblock %}
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('user_settings.profile') }}">Settings</a></li>
+    <li class="breadcrumb-item active">Notifications</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-md-8">
+        <div class="pp-settings-tabs mb-4">
+            <a href="{{ url_for('user_settings.profile') }}" class="pp-settings-tab">Profile</a>
+            <a href="{{ url_for('user_settings.notification_settings') }}" class="pp-settings-tab active">Notifications</a>
+        </div>
+
+        <h1 style="font-size:1.25rem; margin-bottom:24px;">Notification Settings</h1>
+
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="pp-card mb-4">
+                <div class="pp-card-header">Notify me when...</div>
+                <div class="pp-card-body">
+                    <table class="pp-notif-prefs-table">
+                        <thead>
+                            <tr>
+                                <th>Event</th>
+                                <th style="text-align:center; width:80px;">In-App</th>
+                                <th style="text-align:center; width:80px;">Email</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for key, label in types %}
+                            <tr>
+                                <td>
+                                    <div style="font-size:0.875rem;">{{ label }}</div>
+                                </td>
+                                <td style="text-align:center;">
+                                    <input type="checkbox" class="form-check-input"
+                                           name="{{ key }}_in_app"
+                                           {% if prefs[key].in_app %}checked{% endif %}>
+                                </td>
+                                <td style="text-align:center;">
+                                    <input type="checkbox" class="form-check-input"
+                                           name="{{ key }}_email"
+                                           {% if prefs[key].email %}checked{% endif %}>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <button type="submit" class="pp-btn pp-btn-primary">Save Settings</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

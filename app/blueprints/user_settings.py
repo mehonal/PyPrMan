@@ -4,6 +4,7 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_security import auth_required, current_user, logout_user
 
 from app.extensions import db
+from app.models.notification import NotificationPreference, NOTIFICATION_TYPES
 from app.models.project import ProjectMembership
 from app.models.work_item import WorkItem
 
@@ -32,6 +33,58 @@ def profile():
         return redirect(url_for("user_settings.profile"))
 
     return render_template("user_settings/profile.html")
+
+
+NOTIFICATION_TYPE_LABELS = [
+    ("assigned", "Someone assigns a ticket to me"),
+    ("unassigned", "Someone unassigns a ticket from me"),
+    ("mentioned", "Someone mentions me in a comment"),
+    ("comment", "Someone comments on a ticket I'm watching"),
+    ("watched_change", "Someone updates a ticket I'm watching"),
+    ("due_date_soon", "A ticket assigned to me or I'm watching is due soon"),
+]
+
+
+@user_settings_bp.route("/notifications", methods=["GET", "POST"])
+@auth_required()
+def notification_settings():
+    if request.method == "POST":
+        for key, _label in NOTIFICATION_TYPE_LABELS:
+            pref = NotificationPreference.query.filter_by(
+                user_id=current_user.id, type=key
+            ).first()
+            in_app = request.form.get(f"{key}_in_app") == "on"
+            email_on = request.form.get(f"{key}_email") == "on"
+            if pref:
+                pref.in_app = in_app
+                pref.email = email_on
+            else:
+                db.session.add(NotificationPreference(
+                    user_id=current_user.id,
+                    type=key,
+                    in_app=in_app,
+                    email=email_on,
+                ))
+        db.session.commit()
+        flash("Notification settings saved.", "success")
+        return redirect(url_for("user_settings.notification_settings"))
+
+    prefs = {}
+    existing = {
+        p.type: p
+        for p in NotificationPreference.query.filter_by(user_id=current_user.id).all()
+    }
+    for key, _label in NOTIFICATION_TYPE_LABELS:
+        if key in existing:
+            prefs[key] = {"in_app": existing[key].in_app, "email": existing[key].email}
+        else:
+            prefs[key] = {"in_app": True, "email": False}
+
+    return render_template(
+        "user_settings/notifications.html",
+        types=NOTIFICATION_TYPE_LABELS,
+        prefs=prefs,
+    )
 
 
 @user_settings_bp.route("/delete-account", methods=["POST"])

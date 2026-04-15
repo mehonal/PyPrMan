@@ -45,6 +45,7 @@ def create_app(config_name=None):
     from app.blueprints.api import api_bp
     from app.blueprints.user_settings import user_settings_bp
     from app.blueprints.profiles import profiles_bp
+    from app.blueprints.notifications import notifications_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
@@ -58,6 +59,7 @@ def create_app(config_name=None):
     app.register_blueprint(api_bp)
     app.register_blueprint(user_settings_bp)
     app.register_blueprint(profiles_bp)
+    app.register_blueprint(notifications_bp)
 
     @app.errorhandler(403)
     def forbidden(e):
@@ -103,8 +105,18 @@ def create_app(config_name=None):
                     (p for p in projects if p.key == key), None
                 )
 
-            return {"sidebar_projects": projects, "active_project": active_project}
-        return {"sidebar_projects": [], "active_project": None}
+            from app.models.notification import Notification
+
+            unread_count = Notification.query.filter_by(
+                user_id=current_user.id, is_read=False
+            ).count()
+
+            return {
+                "sidebar_projects": projects,
+                "active_project": active_project,
+                "unread_notification_count": unread_count,
+            }
+        return {"sidebar_projects": [], "active_project": None, "unread_notification_count": 0}
 
     @app.after_request
     def set_security_headers(response):

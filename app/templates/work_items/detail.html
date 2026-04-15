@@ -9,6 +9,13 @@
 </ol>
 {% endblock %}
 {% block actions %}
+<button class="pp-btn pp-btn-sm {% if is_watching %}pp-btn-primary{% else %}pp-btn-secondary{% endif %}" id="watchBtn"
+        data-item-id="{{ item.id }}" data-watching="{{ 'true' if is_watching else 'false' }}"
+        title="{{ watcher_count }} watcher{{ 's' if watcher_count != 1 else '' }}">
+    <i class="bi {% if is_watching %}bi-eye-fill{% else %}bi-eye{% endif %}"></i>
+    <span id="watchLabel">{{ 'Watching' if is_watching else 'Watch' }}</span>
+    <span class="pp-watch-count" id="watchCount">{{ watcher_count }}</span>
+</button>
 <a href="{{ url_for('work_items.edit_item', key=project.key, item_key=item.item_key) }}" class="pp-btn pp-btn-secondary pp-btn-sm">
     <i class="bi bi-pencil"></i><span class="d-none d-sm-inline"> Edit</span>
 </a>
@@ -309,6 +316,21 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/inline-edit.js') }}"></script>
 <script>
+    (function() {
+        var btn = document.getElementById('watchBtn');
+        btn.addEventListener('click', function() {
+            var itemId = btn.dataset.itemId;
+            api.post('/api/items/' + itemId + '/watch').then(function(res) {
+                var watching = res.watching;
+                btn.dataset.watching = watching;
+                btn.className = 'pp-btn pp-btn-sm ' + (watching ? 'pp-btn-primary' : 'pp-btn-secondary');
+                btn.querySelector('i').className = 'bi ' + (watching ? 'bi-eye-fill' : 'bi-eye');
+                document.getElementById('watchLabel').textContent = watching ? 'Watching' : 'Watch';
+                document.getElementById('watchCount').textContent = res.watcher_count;
+            });
+        });
+    })();
+
     ppComments.init({{ item.id }}, '{{ project.key }}', '{{ item.item_key }}');
 
     var ppLinks = (function () {

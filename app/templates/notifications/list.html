@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Notifications - PyPrMan{% endblock %}
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item active">Notifications</li>
+</ol>
+{% endblock %}
+
+{% block actions %}
+{% if notifications %}
+<button class="pp-btn pp-btn-sm pp-btn-secondary" id="markAllRead">Mark all as read</button>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-md-8">
+        <h1 style="font-size:1.25rem; margin-bottom:24px;">Notifications</h1>
+
+        {% if not notifications %}
+        <div class="pp-card">
+            <div class="pp-card-body" style="text-align:center; padding:48px 24px; color:var(--pp-text-muted);">
+                <i class="bi bi-bell" style="font-size:2rem; display:block; margin-bottom:12px; opacity:0.4;"></i>
+                No notifications yet.
+            </div>
+        </div>
+        {% else %}
+        <div class="pp-notification-list">
+            {% for notif in notifications %}
+            <a href="#" class="pp-notification-item {% if not notif.is_read %}pp-notification-unread{% endif %}"
+               data-id="{{ notif.id }}" data-url="{{ notif.url }}">
+                <div class="pp-notification-icon">
+                    {% if notif.type == 'assigned' %}
+                    <i class="bi bi-person-plus-fill" style="color:var(--pp-primary);"></i>
+                    {% elif notif.type == 'unassigned' %}
+                    <i class="bi bi-person-dash-fill" style="color:var(--pp-text-muted);"></i>
+                    {% elif notif.type == 'mentioned' %}
+                    <i class="bi bi-at" style="color:var(--pp-warning, #f59e0b);"></i>
+                    {% elif notif.type == 'comment' %}
+                    <i class="bi bi-chat-dots-fill" style="color:var(--pp-info, #3b82f6);"></i>
+                    {% elif notif.type == 'watched_change' %}
+                    <i class="bi bi-pencil-square" style="color:var(--pp-success, #22c55e);"></i>
+                    {% elif notif.type == 'due_date_soon' %}
+                    <i class="bi bi-clock-fill" style="color:var(--pp-danger, #ef4444);"></i>
+                    {% else %}
+                    <i class="bi bi-bell-fill"></i>
+                    {% endif %}
+                </div>
+                <div class="pp-notification-body">
+                    <div class="pp-notification-title">{{ notif.title }}</div>
+                    {% if notif.message %}
+                    <div class="pp-notification-message">{{ notif.message|truncate(120) }}</div>
+                    {% endif %}
+                    <div class="pp-notification-time">{{ notif.created_at.strftime('%b %d, %Y %H:%M') }}</div>
+                </div>
+                {% if not notif.is_read %}
+                <span class="pp-notification-dot"></span>
+                {% endif %}
+            </a>
+            {% endfor %}
+        </div>
+
+        {% if pagination.pages > 1 %}
+        <nav style="margin-top:24px; display:flex; justify-content:center; gap:8px;">
+            {% if pagination.has_prev %}
+            <a href="?page={{ pagination.prev_num }}" class="pp-btn pp-btn-sm pp-btn-secondary">&laquo; Prev</a>
+            {% endif %}
+            <span style="align-self:center; font-size:0.8125rem; color:var(--pp-text-muted);">
+                Page {{ pagination.page }} of {{ pagination.pages }}
+            </span>
+            {% if pagination.has_next %}
+            <a href="?page={{ pagination.next_num }}" class="pp-btn pp-btn-sm pp-btn-secondary">Next &raquo;</a>
+            {% endif %}
+        </nav>
+        {% endif %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    document.querySelectorAll('.pp-notification-item').forEach(function(el) {
+        el.addEventListener('click', function(e) {
+            e.preventDefault();
+            var id = this.dataset.id;
+            var url = this.dataset.url;
+            api.post('/api/notifications/' + id + '/read').then(function() {
+                if (url) window.location.href = url;
+                else {
+                    el.classList.remove('pp-notification-unread');
+                    var dot = el.querySelector('.pp-notification-dot');
+                    if (dot) dot.remove();
+                }
+            });
+        });
+    });
+
+    var markAllBtn = document.getElementById('markAllRead');
+    if (markAllBtn) {
+        markAllBtn.addEventListener('click', function() {
+            api.post('/api/notifications/read-all').then(function() {
+                document.querySelectorAll('.pp-notification-unread').forEach(function(el) {
+                    el.classList.remove('pp-notification-unread');
+                });
+                document.querySelectorAll('.pp-notification-dot').forEach(function(el) {
+                    el.remove();
+                });
+                var badge = document.querySelector('.pp-notif-badge');
+                if (badge) badge.style.display = 'none';
+            });
+        });
+    }
+})();
+</script>
+{% endblock %}

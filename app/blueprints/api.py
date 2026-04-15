@@ -11,6 +11,8 @@ from app.models.project import Project, ProjectMembership
 from app.models.sprint import Sprint, SprintProject
 from app.models.status import Status
 from app.models.link import LINK_REVERSE, LINK_TYPES, WorkItemLink
+from app.models.notification import Notification
+from app.models.watcher import Watcher
 from app.models.work_item import WorkItem
 from app.blueprints.helpers import get_project as _get_project, user_project_ids as user_project_ids
 from app.validation import (
@@ -235,6 +237,7 @@ def update_item(item_id):
         return jsonify({"error": "No data provided"}), 400
 
     changes = {}
+    old_assignee_id = item.assignee_id
 
     if "title" in data:
         new_title = data["title"].strip()
@@ -334,6 +337,19 @@ def update_item(item_id):
             )
         )
 
+    if changes:
+        from app.notifications import notify_assigned, notify_unassigned, notify_watchers
+
+        if "assignee" in changes:
+            new_assignee_id = item.assignee_id
+            if new_assignee_id:
+                notify_assigned(current_user, item, new_assignee_id)
+            if old_assignee_id:
+                notify_unassigned(current_user, item, old_assignee_id)
+
+        change_parts = [f"{f}: {old} → {new}" for f, (old, new) in changes.items()]
+        notify_watchers(current_user, item, "; ".join(change_parts))
+
     db.session.commit()
 
     return jsonify({
@@ -364,6 +380,11 @@ def add_comment(item_id):
 
     comment = Comment(work_item=item, author_id=current_user.id, body=body)
     db.session.add(comment)
+
+    from app.notifications import notify_comment, notify_mentioned
+    notify_comment(current_user, item, body)
+    notify_mentioned(current_user, item, body)
+
     db.session.commit()
 
     return jsonify({
@@ -935,5 +956,48 @@ def delete_link(item_id, link_id):
     if link.source_id != item_id and link.target_id != item_id:
         abort(404)
     db.session.delete(link)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+# -- Watchers --
+
+@api_bp.route("/items/<int:item_id>/watch", methods=["POST"])
+@auth_required()
+def toggle_watch(item_id):
+    item = _get_item(item_id)
+    existing = Watcher.query.filter_by(
+        user_id=current_user.id, work_item_id=item.id
+    ).first()
+    if existing:
+        db.session.delete(existing)
+        watching = False
+    else:
+        db.session.add(Watcher(user_id=current_user.id, work_item_id=item.id))
+        watching = True
+    db.session.commit()
+    count = Watcher.query.filter_by(work_item_id=item.id).count()
+    return jsonify({"ok": True, "watching": watching, "watcher_count": count})
+
+
+# -- Notifications --
+
+@api_bp.route("/notifications/<int:notif_id>/read", methods=["POST"])
+@auth_required()
+def mark_notification_read(notif_id):
+    notif = Notification.query.get_or_404(notif_id)
+    if notif.user_id != current_user.id:
+        abort(403)
+    notif.is_read = True
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@api_bp.route("/notifications/read-all", methods=["POST"])
+@auth_required()
+def mark_all_notifications_read():
+    Notification.query.filter_by(
+        user_id=current_user.id, is_read=False
+    ).update({"is_read": True})
     db.session.commit()
     return jsonify({"ok": True})

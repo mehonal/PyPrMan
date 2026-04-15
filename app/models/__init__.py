@@ -8,6 +8,8 @@ from app.models.work_item import WorkItem
 from app.models.activity import Comment, ActivityLog
 from app.models.label import Label, work_item_labels
 from app.models.link import WorkItemLink
+from app.models.watcher import Watcher
+from app.models.notification import Notification, NotificationPreference
 
 __all__ = [
     "User",
@@ -25,4 +27,7 @@ __all__ = [
     "Label",
     "work_item_labels",
     "WorkItemLink",
+    "Watcher",
+    "Notification",
+    "NotificationPreference",
 ]

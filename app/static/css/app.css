@@ -2215,3 +2215,154 @@ textarea.pp-input {
         transition-duration: 0.01ms !important;
     }
 }
+
+/* ── Notification bell ── */
+.pp-notif-bell {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    color: var(--pp-text-muted);
+    text-decoration: none;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+}
+.pp-notif-bell:hover {
+    background: var(--pp-hover-bg);
+    color: var(--pp-text);
+}
+.pp-notif-badge {
+    position: absolute;
+    top: 2px;
+    right: 0;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 8px;
+    background: var(--pp-danger, #ef4444);
+    color: #fff;
+    font-size: 0.625rem;
+    font-weight: 600;
+    line-height: 16px;
+    text-align: center;
+}
+
+/* ── Notification list ── */
+.pp-notification-list {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--pp-border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.pp-notification-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+    text-decoration: none;
+    color: var(--pp-text);
+    border-bottom: 1px solid var(--pp-border);
+    transition: background 0.15s;
+    position: relative;
+}
+.pp-notification-item:last-child { border-bottom: none; }
+.pp-notification-item:hover { background: var(--pp-hover-bg); }
+.pp-notification-unread { background: var(--pp-selection-bg, rgba(79, 70, 229, 0.06)); }
+.pp-notification-icon {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 1rem;
+    margin-top: 2px;
+}
+.pp-notification-body { flex: 1; min-width: 0; }
+.pp-notification-title {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.4;
+}
+.pp-notification-message {
+    font-size: 0.75rem;
+    color: var(--pp-text-muted);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.pp-notification-time {
+    font-size: 0.6875rem;
+    color: var(--pp-text-muted);
+    margin-top: 4px;
+}
+.pp-notification-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--pp-primary);
+    flex-shrink: 0;
+    margin-top: 8px;
+}
+
+/* ── Watch button ── */
+.pp-watch-count {
+    display: inline-block;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 8px;
+    background: rgba(128, 128, 128, 0.15);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 16px;
+    text-align: center;
+    margin-left: 4px;
+}
+
+/* ── Settings tabs ── */
+.pp-settings-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--pp-border);
+}
+.pp-settings-tab {
+    padding: 8px 16px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--pp-text-muted);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: color 0.15s, border-color 0.15s;
+}
+.pp-settings-tab:hover { color: var(--pp-text); }
+.pp-settings-tab.active {
+    color: var(--pp-primary);
+    border-bottom-color: var(--pp-primary);
+}
+
+/* ── Notification preferences table ── */
+.pp-notif-prefs-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.pp-notif-prefs-table th {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--pp-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--pp-border);
+}
+.pp-notif-prefs-table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--pp-border);
+}
+.pp-notif-prefs-table tr:last-child td { border-bottom: none; }

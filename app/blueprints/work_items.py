@@ -6,6 +6,7 @@ from app.models.activity import ActivityLog, Comment
 from app.models.epic import Epic
 from app.models.project import Project, ProjectMembership
 from app.models.sprint import Sprint, SprintProject
+from app.models.watcher import Watcher
 from app.models.work_item import WorkItem
 from app.blueprints.helpers import get_project as _get_project
 from app.validation import validate_priority
@@ -108,6 +109,14 @@ def create_item(key):
             item_key=project.next_item_key(),
         )
         db.session.add(item)
+        db.session.flush()
+
+        from app.notifications import add_watcher, notify_assigned
+        add_watcher(current_user.id, item.id)
+        if assignee_id and assignee_id != current_user.id:
+            add_watcher(assignee_id, item.id)
+            notify_assigned(current_user, item, assignee_id)
+
         db.session.commit()
         flash("Work item created.", "success")
         return redirect(
@@ -130,6 +139,10 @@ def detail(key, item_key):
     project = _get_project(key)
     item = WorkItem.query.filter_by(item_key=item_key.upper(), project_id=project.id).first_or_404()
     members = [m.user for m in ProjectMembership.query.filter_by(project_id=project.id).options(db.joinedload(ProjectMembership.user)).all()]
+    is_watching = Watcher.query.filter_by(
+        user_id=current_user.id, work_item_id=item.id
+    ).first() is not None
+    watcher_count = Watcher.query.filter_by(work_item_id=item.id).count()
     from datetime import date
     return render_template(
         "work_items/detail.html",
@@ -138,6 +151,8 @@ def detail(key, item_key):
         members=members,
         sprints=_get_sprints_for_project(project),
         today=date.today(),
+        is_watching=is_watching,
+        watcher_count=watcher_count,
     )
 
 
@@ -156,6 +171,7 @@ def edit_item(key, item_key):
         new_epic_id = request.form.get("epic_id", type=int) or None
         new_sprint_id = request.form.get("sprint_id", type=int) or None
         new_assignee_id = request.form.get("assignee_id", type=int) or None
+        old_assignee_id = item.assignee_id
 
         _log_change(item, "title", item.title, new_title)
         _log_change(item, "priority", item.priority, new_priority)
@@ -193,6 +209,14 @@ def edit_item(key, item_key):
         item.epic_id = new_epic_id
         item.sprint_id = new_sprint_id
         item.assignee_id = new_assignee_id
+
+        from app.notifications import notify_assigned, notify_unassigned, notify_watchers
+        if new_assignee_id != old_assignee_id:
+            if new_assignee_id:
+                notify_assigned(current_user, item, new_assignee_id)
+            if old_assignee_id:
+                notify_unassigned(current_user, item, old_assignee_id)
+        notify_watchers(current_user, item, f"{current_user.display_name} updated {item.item_key}")
 
         db.session.commit()
         flash("Work item updated.", "success")
@@ -260,6 +284,11 @@ def add_comment(key, item_key):
     if body:
         comment = Comment(work_item=item, author_id=current_user.id, body=body)
         db.session.add(comment)
+
+        from app.notifications import notify_comment, notify_mentioned
+        notify_comment(current_user, item, body)
+        notify_mentioned(current_user, item, body)
+
         db.session.commit()
         flash("Comment added.", "success")
     return redirect(url_for("work_items.detail", key=key, item_key=item.item_key))

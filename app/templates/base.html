@@ -125,6 +125,12 @@
                     </div>
                     <div class="pp-search-results" id="searchResults" style="display:none;"></div>
                 </div>
+                <a href="{{ url_for('notifications.list_notifications') }}" class="pp-notif-bell" title="Notifications" aria-label="Notifications">
+                    <i class="bi bi-bell"></i>
+                    {% if unread_notification_count > 0 %}
+                    <span class="pp-notif-badge">{{ unread_notification_count if unread_notification_count < 100 else '99+' }}</span>
+                    {% endif %}
+                </a>
                 <div class="pp-topbar-actions">
                     {% block actions %}{% endblock %}
                 </div>

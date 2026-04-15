@@ -9,6 +9,11 @@
 {% block content %}
 <div class="row g-4">
     <div class="col-md-8">
+        <div class="pp-settings-tabs mb-4">
+            <a href="{{ url_for('user_settings.profile') }}" class="pp-settings-tab active">Profile</a>
+            <a href="{{ url_for('user_settings.notification_settings') }}" class="pp-settings-tab">Notifications</a>
+        </div>
+
         <h1 style="font-size:1.25rem; margin-bottom:24px;">Profile Settings</h1>
 
         <form method="POST">
