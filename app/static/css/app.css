@@ -2005,7 +2005,34 @@ textarea.pp-input {
     }
 
     .pp-topbar {
-        padding: 12px 16px;
+        padding: 8px 10px;
+        gap: 4px;
+    }
+
+    .pp-mobile-toggle {
+        padding: 4px;
+        margin-right: -2px;
+    }
+
+    .pp-topbar .breadcrumb {
+        font-size: 0.8125rem;
+    }
+
+    .pp-search-wrapper {
+        margin-right: 0;
+    }
+
+    .pp-notif-bell {
+        width: 28px;
+        height: 28px;
+    }
+
+    .pp-quick-add-btn {
+        margin-left: 2px;
+    }
+
+    .pp-topbar-actions {
+        gap: 4px;
     }
 
     .kanban-column {
@@ -2034,9 +2061,9 @@ textarea.pp-input {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 32px;
-        height: 32px;
-        font-size: 0.875rem;
+        width: 28px;
+        height: 28px;
+        font-size: 0.8125rem;
         color: var(--pp-text-secondary);
         background: var(--pp-surface);
         border: 1px solid var(--pp-border);
