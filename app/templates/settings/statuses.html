@@ -34,6 +34,7 @@
                         <option value="todo" selected>To Do</option>
                         <option value="in_progress">In Progress</option>
                         <option value="done">Done</option>
+                        <option value="cancelled">Cancelled</option>
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -44,6 +45,25 @@
                     <button type="submit" class="pp-btn pp-btn-primary" style="width:100%;"><i class="bi bi-plus-lg"></i> Add</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <div class="pp-card mb-4">
+        <div class="pp-card-header">SP Counting</div>
+        <div class="pp-card-body">
+            <form method="POST" class="d-flex align-items-center gap-3">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="update_settings">
+                <label class="d-flex align-items-center gap-2" style="cursor:pointer;">
+                    <input type="checkbox" name="count_cancelled_as_completed"
+                           {% if project.count_cancelled_as_completed %}checked{% endif %}
+                           onchange="this.form.submit()">
+                    <span>Count cancelled items as completed <span style="color:var(--pp-text-muted); font-size:0.8125rem;">(Jira-style)</span></span>
+                </label>
+            </form>
+            <div style="font-size:0.8125rem; color:var(--pp-text-muted); margin-top:0.5rem;">
+                When off (default), cancelled items are excluded from velocity, burndown, and sprint completion totals. Cancelled items are always hidden from active work views and are never treated as sprint carryover.
+            </div>
         </div>
     </div>
 
@@ -77,7 +97,7 @@
                     <span class="pp-status-dot" style="background:{{ status.color }}"></span>
                     <input type="text" class="pp-input" name="name" value="{{ status.name }}" style="width:120px; padding:4px 8px; font-size:0.8125rem;">
                     <select class="pp-select" name="category" style="width:auto; padding:4px 8px; font-size:0.8125rem;">
-                        {% for cat in ['todo', 'in_progress', 'done'] %}
+                        {% for cat in ['todo', 'in_progress', 'done', 'cancelled'] %}
                         <option value="{{ cat }}" {% if status.category == cat %}selected{% endif %}>{{ cat|replace('_', ' ')|title }}</option>
                         {% endfor %}
                     </select>

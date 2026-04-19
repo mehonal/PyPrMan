@@ -139,7 +139,7 @@ def aggregated_board():
         db.joinedload(WorkItem.labels),
     ).order_by(WorkItem.position).all()
 
-    category_order = ["todo", "in_progress", "done"]
+    category_order = ["todo", "in_progress", "done", "cancelled"]
     seen_categories = {}
     columns = {}
     for s in all_statuses:

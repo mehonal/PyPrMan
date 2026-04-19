@@ -7,7 +7,7 @@ from flask_security import auth_required, current_user
 from app.extensions import db
 from app.models.project import Project, ProjectMembership
 from app.models.sprint import Sprint, SprintProject
-from app.models.status import Status
+from app.models.status import FINAL_CATEGORIES, Status
 from app.models.work_item import WorkItem
 
 main_bp = Blueprint("main", __name__)
@@ -46,7 +46,7 @@ def dashboard():
             WorkItem.project_id.in_(user_project_ids),
         )
         .join(WorkItem.status)
-        .filter(Status.category != "done")
+        .filter(Status.category.notin_(FINAL_CATEGORIES))
         .options(*_eager)
         .order_by(WorkItem.updated_at.desc())
         .limit(20)
@@ -71,7 +71,7 @@ def dashboard():
             WorkItem.due_date <= today + timedelta(days=7),
         )
         .join(WorkItem.status)
-        .filter(Status.category != "done")
+        .filter(Status.category.notin_(FINAL_CATEGORIES))
         .options(*_eager)
         .order_by(WorkItem.due_date.asc())
         .limit(15)
@@ -82,7 +82,7 @@ def dashboard():
     total_open = (
         WorkItem.query.filter(WorkItem.project_id.in_(user_project_ids))
         .join(WorkItem.status)
-        .filter(Status.category != "done")
+        .filter(Status.category.notin_(FINAL_CATEGORIES))
         .count()
     )
     my_open_count = (
@@ -91,7 +91,7 @@ def dashboard():
             WorkItem.project_id.in_(user_project_ids),
         )
         .join(WorkItem.status)
-        .filter(Status.category != "done")
+        .filter(Status.category.notin_(FINAL_CATEGORIES))
         .count()
     )
     overdue_count = (
@@ -101,7 +101,7 @@ def dashboard():
             WorkItem.due_date < today,
         )
         .join(WorkItem.status)
-        .filter(Status.category != "done")
+        .filter(Status.category.notin_(FINAL_CATEGORIES))
         .count()
     )
 
@@ -115,6 +115,7 @@ def dashboard():
         .distinct()
         .options(
             db.selectinload(Sprint.work_items).joinedload(WorkItem.status),
+            db.selectinload(Sprint.work_items).joinedload(WorkItem.project),
             db.selectinload(Sprint.sprint_projects).joinedload(SprintProject.project),
         )
         .all()
@@ -147,6 +148,7 @@ def dashboard():
         {"category": "todo", "label": "To Do", "sp": sprint_sp_by_category.get("todo", 0)},
         {"category": "in_progress", "label": "In Progress", "sp": sprint_sp_by_category.get("in_progress", 0)},
         {"category": "done", "label": "Done", "sp": sprint_sp_by_category.get("done", 0)},
+        {"category": "cancelled", "label": "Cancelled", "sp": sprint_sp_by_category.get("cancelled", 0)},
     ]
     project_map = {p.id: p for p in projects}
     project_sp_breakdown = [

@@ -42,11 +42,14 @@ class Sprint(db.Model):
 
     @property
     def completed_sp(self):
-        return sum(
-            i.story_points or 0
-            for i in self.work_items
-            if i.status.category == "done"
-        )
+        total = 0
+        for i in self.work_items:
+            cat = i.status.category
+            if cat == "done" or (
+                cat == "cancelled" and i.project.count_cancelled_as_completed
+            ):
+                total += i.story_points or 0
+        return total
 
     @property
     def in_progress_sp(self):

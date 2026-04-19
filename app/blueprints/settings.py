@@ -77,6 +77,13 @@ def manage_statuses(key):
                 db.session.commit()
                 flash("Status deleted.", "success")
 
+        elif action == "update_settings":
+            project.count_cancelled_as_completed = (
+                request.form.get("count_cancelled_as_completed") == "on"
+            )
+            db.session.commit()
+            flash("Settings updated.", "success")
+
         elif action == "move_up" or action == "move_down":
             status_id = request.form.get("status_id", type=int)
             statuses = Status.query.filter_by(project_id=project.id).order_by(Status.position).all()

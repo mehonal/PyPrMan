@@ -1,6 +1,8 @@
 from app.extensions import db
 
-STATUS_CATEGORIES = ["todo", "in_progress", "done"]
+STATUS_CATEGORIES = ["todo", "in_progress", "done", "cancelled"]
+
+FINAL_CATEGORIES = ("done", "cancelled")
 
 
 class Status(db.Model):

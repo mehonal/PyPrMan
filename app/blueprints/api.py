@@ -14,7 +14,11 @@ from app.models.link import LINK_REVERSE, LINK_TYPES, WorkItemLink
 from app.models.notification import Notification
 from app.models.watcher import Watcher
 from app.models.work_item import WorkItem
-from app.blueprints.helpers import get_project as _get_project, user_project_ids as user_project_ids
+from app.blueprints.helpers import (
+    completed_categories,
+    get_project as _get_project,
+    user_project_ids as user_project_ids,
+)
 from app.validation import (
     validate_hex_color,
     validate_icon_class,
@@ -461,12 +465,22 @@ def sprint_burndown(sprint_id):
     done_items = set()
     log_idx = 0
 
-    # Get all done status names from project statuses
+    # Get all "completed" status names (done + cancelled when project opts in).
+    from app.models.status import Status as StatusModel
     done_status_names = set()
     filter_pids = [project_id] if project_id else sprint_project_ids
+    pid_projects = {
+        p.id: p for p in Project.query.filter(Project.id.in_(filter_pids)).all()
+    }
     for pid in filter_pids:
-        from app.models.status import Status as StatusModel
-        for s in StatusModel.query.filter_by(project_id=pid, category="done").all():
+        proj = pid_projects.get(pid)
+        if not proj:
+            continue
+        cats = completed_categories(proj)
+        for s in StatusModel.query.filter(
+            StatusModel.project_id == pid,
+            StatusModel.category.in_(cats),
+        ).all():
             done_status_names.add(s.name)
 
     dates = []
@@ -530,9 +544,11 @@ def velocity_data():
     results = []
     done_status_names = None
     if filter_project_id:
+        project = Project.query.get(filter_project_id)
         done_status_names = {
-            s.name for s in Status.query.filter_by(
-                project_id=filter_project_id, category="done"
+            s.name for s in Status.query.filter(
+                Status.project_id == filter_project_id,
+                Status.category.in_(completed_categories(project)),
             ).all()
         }
 
@@ -588,15 +604,26 @@ def epic_burndown(epic_id):
     )
 
     from app.models.status import Status as StatusModel
-    done_status_names = set()
-    for s in StatusModel.query.filter_by(project_id=epic.project_id, category="done").all():
-        done_status_names.add(s.name)
+    completed_cats = completed_categories(epic.project)
+    done_status_names = {
+        s.name for s in StatusModel.query.filter(
+            StatusModel.project_id == epic.project_id,
+            StatusModel.category.in_(completed_cats),
+        ).all()
+    }
 
     if not status_logs:
         today = date.today()
         return jsonify({
             "dates": [today.strftime("%b %d")],
-            "actual": [total_sp - sum(sp_map.get(i.id, 0) for i in items if i.status.category == "done")],
+            "actual": [
+                total_sp
+                - sum(
+                    sp_map.get(i.id, 0)
+                    for i in items
+                    if i.status.category in completed_cats
+                )
+            ],
         })
 
     start = status_logs[0].created_at.date()

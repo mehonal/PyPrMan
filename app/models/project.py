@@ -12,6 +12,9 @@ class Project(db.Model):
     updated_at = db.Column(
         db.DateTime, server_default=db.func.now(), onupdate=db.func.now()
     )
+    count_cancelled_as_completed = db.Column(
+        db.Boolean, default=False, nullable=False, server_default=db.false()
+    )
 
     created_by = db.relationship("User", backref="created_projects")
     memberships = db.relationship(
@@ -48,6 +51,7 @@ class Project(db.Model):
             ("In Progress", "in_progress", "#f59e0b", 1),
             ("In Review", "in_progress", "#8b5cf6", 2),
             ("Done", "done", "#10b981", 3),
+            ("Cancelled", "cancelled", "#6b7280", 4),
         ]
         for name, category, color, position in defaults:
             status = Status(

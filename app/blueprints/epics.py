@@ -12,11 +12,13 @@ epics_bp = Blueprint("epics", __name__)
 
 
 def _epic_sp_stats(epic):
+    count_cancelled = epic.project.count_cancelled_as_completed
     total = sum(i.story_points or 0 for i in epic.work_items)
     done = sum(
         i.story_points or 0
         for i in epic.work_items
         if i.status.category == "done"
+        or (count_cancelled and i.status.category == "cancelled")
     )
     pct = round(done * 100 / total) if total else 0
     return {"total": total, "done": done, "pct": pct}
@@ -65,7 +67,10 @@ def list_epics(key):
     project = _get_project(key)
     epics = (
         Epic.query.filter_by(project_id=project.id)
-        .options(db.selectinload(Epic.work_items).joinedload(WorkItem.status))
+        .options(
+            db.selectinload(Epic.work_items).joinedload(WorkItem.status),
+            db.joinedload(Epic.project),
+        )
         .order_by(Epic.position)
         .all()
     )
@@ -84,6 +89,7 @@ def detail_epic(key, epic_id):
             db.selectinload(Epic.work_items).joinedload(WorkItem.status),
             db.selectinload(Epic.work_items).joinedload(WorkItem.item_type),
             db.selectinload(Epic.work_items).joinedload(WorkItem.assignee),
+            db.joinedload(Epic.project),
         )
         .get_or_404(epic_id)
     )
@@ -175,7 +181,10 @@ def epic_board(key):
     project = _get_project(key)
     epics = (
         Epic.query.filter_by(project_id=project.id)
-        .options(db.selectinload(Epic.work_items).joinedload(WorkItem.status))
+        .options(
+            db.selectinload(Epic.work_items).joinedload(WorkItem.status),
+            db.joinedload(Epic.project),
+        )
         .order_by(Epic.position)
         .all()
     )

@@ -10,7 +10,10 @@ from app.models.project import Project, ProjectMembership
 from app.models.sprint import Sprint, SprintProject
 from app.models.status import Status
 from app.models.work_item import WorkItem
-from app.blueprints.helpers import user_project_ids as user_project_ids
+from app.blueprints.helpers import (
+    completed_categories,
+    user_project_ids as user_project_ids,
+)
 
 sprints_bp = Blueprint("sprints", __name__, url_prefix="/sprints")
 
@@ -26,6 +29,7 @@ def list_sprints():
         .options(
             db.selectinload(Sprint.sprint_projects).joinedload(SprintProject.project),
             db.selectinload(Sprint.work_items).joinedload(WorkItem.status),
+            db.selectinload(Sprint.work_items).joinedload(WorkItem.project),
         )
         .order_by(Sprint.start_date.desc().nullslast(), Sprint.id.desc())
         .all()
@@ -67,9 +71,11 @@ def project_sprints(key):
         .order_by(Sprint.start_date.desc().nullslast(), Sprint.id.desc())
         .all()
     )
-    done_status_names = {
-        s.name for s in Status.query.filter_by(
-            project_id=project.id, category="done"
+    completed_cats = completed_categories(project)
+    completed_status_names = {
+        s.name for s in Status.query.filter(
+            Status.project_id == project.id,
+            Status.category.in_(completed_cats),
         ).all()
     }
 
@@ -82,7 +88,7 @@ def project_sprints(key):
             "committed_sp": sum(i.story_points or 0 for i in proj_items),
             "completed_sp": sum(
                 i.story_points or 0 for i in proj_items
-                if i.status.name in done_status_names
+                if i.status.name in completed_status_names
             ),
         }
 
@@ -137,8 +143,21 @@ def sprint_detail(sprint_id):
     else:
         items = all_items
 
-    completed_items = [i for i in items if i.status.category == "done"]
-    carryover_items = [i for i in items if i.status.category != "done"] if sprint.completed_at else []
+    def _is_completed(item):
+        cat = item.status.category
+        if cat == "done":
+            return True
+        if cat == "cancelled" and item.project.count_cancelled_as_completed:
+            return True
+        return False
+
+    completed_items = [i for i in items if _is_completed(i)]
+    # Cancelled items are intentionally terminal — not carryover even if uncounted.
+    carryover_items = (
+        [i for i in items if i.status.category not in ("done", "cancelled")]
+        if sprint.completed_at
+        else []
+    )
 
     committed_sp = sum(i.story_points or 0 for i in items)
     completed_sp = sum(i.story_points or 0 for i in completed_items)
@@ -165,6 +184,7 @@ def sprint_detail(sprint_id):
         {"category": "todo", "label": "To Do", "sp": sp_by_category.get("todo", 0)},
         {"category": "in_progress", "label": "In Progress", "sp": sp_by_category.get("in_progress", 0)},
         {"category": "done", "label": "Done", "sp": sp_by_category.get("done", 0)},
+        {"category": "cancelled", "label": "Cancelled", "sp": sp_by_category.get("cancelled", 0)},
     ]
 
     # Scope changes: items added/removed from this sprint
@@ -309,6 +329,7 @@ def start_sprint(sprint_id):
 def complete_sprint(sprint_id):
     sprint = Sprint.query.options(
         db.selectinload(Sprint.work_items).joinedload(WorkItem.status),
+        db.selectinload(Sprint.work_items).joinedload(WorkItem.project),
     ).get_or_404(sprint_id)
     sprint_project_ids = [sp.project_id for sp in sprint.sprint_projects]
     membership = ProjectMembership.query.filter(
@@ -324,6 +345,10 @@ def complete_sprint(sprint_id):
         i.story_points or 0
         for i in sprint.work_items
         if i.status.category == "done"
+        or (
+            i.status.category == "cancelled"
+            and i.project.count_cancelled_as_completed
+        )
     )
     sprint.completed_at = datetime.utcnow()
     sprint.is_active = False
