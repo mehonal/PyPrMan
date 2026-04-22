@@ -51,7 +51,7 @@ class WorkItem(db.Model):
     parent = db.relationship("WorkItem", remote_side=[id], backref="subtasks")
     comments = db.relationship(
         "Comment", back_populates="work_item", cascade="all, delete-orphan",
-        order_by="Comment.created_at",
+        order_by="Comment.created_at.desc()",
     )
     activity_logs = db.relationship(
         "ActivityLog", back_populates="work_item", cascade="all, delete-orphan",

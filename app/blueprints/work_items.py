@@ -284,6 +284,10 @@ def add_comment(key, item_key):
     if body:
         comment = Comment(work_item=item, author_id=current_user.id, body=body)
         db.session.add(comment)
+        db.session.add(ActivityLog(
+            work_item=item, user_id=current_user.id,
+            field_changed="comment", old_value="", new_value="added",
+        ))
 
         from app.notifications import notify_comment, notify_mentioned
         notify_comment(current_user, item, body)
@@ -305,6 +309,10 @@ def delete_comment(key, item_key, comment_id):
     if comment.author_id != current_user.id:
         abort(403)
     db.session.delete(comment)
+    db.session.add(ActivityLog(
+        work_item=item, user_id=current_user.id,
+        field_changed="comment", old_value="", new_value="deleted",
+    ))
     db.session.commit()
     flash("Comment deleted.", "success")
     return redirect(url_for("work_items.detail", key=key, item_key=item.item_key))

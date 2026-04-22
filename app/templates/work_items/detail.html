@@ -165,9 +165,13 @@
                 {% for log in item.activity_logs %}
                 <div style="padding:6px 0; font-size:0.8125rem; color:var(--pp-text-secondary);{% if not loop.last %} border-bottom:1px solid var(--pp-border);{% endif %}">
                     <strong>{{ log.user.display_name }}</strong>
+                    {% if log.field_changed == 'comment' %}
+                    {{ log.new_value }} a comment
+                    {% else %}
                     changed <em>{{ log.field_changed }}</em>
                     {% if log.old_value %}from <span style="text-decoration:line-through;">{{ log.old_value }}</span>{% endif %}
                     to <strong style="color:var(--pp-text);">{{ log.new_value }}</strong>
+                    {% endif %}
                     <span style="margin-left:8px; color:var(--pp-text-muted); font-size:0.75rem;">{{ log.created_at.strftime('%b %d, %Y %H:%M') }}</span>
                 </div>
                 {% endfor %}

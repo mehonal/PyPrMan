@@ -668,7 +668,7 @@ var ppComments = (function () {
                 '<div class="pp-comment-body pp-markdown">' + renderCommentMarkdown(comment.body) + '</div>' +
             '</div>';
 
-        list.appendChild(div);
+        list.insertBefore(div, list.firstChild);
     }
 
     function escapeHtml(str) {

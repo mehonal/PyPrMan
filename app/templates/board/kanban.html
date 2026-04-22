@@ -123,6 +123,10 @@
                     </span>
                     {% endif %}
                     <span class="pp-sp-badge" data-sp-edit data-item-id="{{ item.id }}" data-sp="{{ item.story_points if item.story_points is not none else '' }}" title="Story points">{{ item.story_points if item.story_points is not none else '—' }}</span>
+                    {% set cc = comment_counts.get(item.id, 0) if comment_counts else 0 %}
+                    {% if cc %}
+                    <span class="pp-comment-count" title="{{ cc }} comment{{ 's' if cc != 1 else '' }}"><i class="bi bi-chat"></i> {{ cc }}</span>
+                    {% endif %}
                     <span class="pp-badge pp-badge-muted pp-quick-assignee" style="margin-left:auto;" data-quick-assignee data-item-id="{{ item.id }}" data-project-key="{{ item.project.key }}" data-current="{{ item.assignee_id or '' }}">{{ item.assignee.display_name[:8] if item.assignee else '—' }}</span>
                 </div>
             </div>

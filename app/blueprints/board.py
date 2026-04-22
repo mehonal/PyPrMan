@@ -2,7 +2,9 @@ from flask import Blueprint, abort, jsonify, render_template, request
 from flask_security import auth_required, current_user
 
 from app.extensions import db
-from app.models.activity import ActivityLog
+from sqlalchemy import func
+
+from app.models.activity import ActivityLog, Comment
 from app.models.epic import Epic
 from app.models.label import Label
 from app.models.project import Project, ProjectMembership
@@ -12,6 +14,18 @@ from app.models.work_item import WorkItem
 from app.blueprints.helpers import user_project_ids as user_project_ids, sprint_sp_stats
 
 board_bp = Blueprint("board", __name__)
+
+
+def _comment_counts(item_ids):
+    if not item_ids:
+        return {}
+    rows = (
+        db.session.query(Comment.work_item_id, func.count(Comment.id))
+        .filter(Comment.work_item_id.in_(item_ids))
+        .group_by(Comment.work_item_id)
+        .all()
+    )
+    return dict(rows)
 
 
 @board_bp.route("/projects/<key>/board")
@@ -63,6 +77,8 @@ def project_board(key):
             "work_items": [i for i in items if i.status_id == s.id],
         }
 
+    comment_counts = _comment_counts([i.id for i in items])
+
     sprint_sp = {}
     if active_sprint:
         sprint_sp = sprint_sp_stats([active_sprint.id], [project.id])
@@ -84,6 +100,7 @@ def project_board(key):
         filter_epic_id=filter_epic_id,
         labels=labels,
         filter_label_id=filter_label_id,
+        comment_counts=comment_counts,
         today=date.today(),
     )
 
@@ -155,6 +172,8 @@ def aggregated_board():
 
     sorted_columns = {k: columns[k] for k in category_order if k in columns}
 
+    comment_counts = _comment_counts([i.id for i in items])
+
     sprint_sp = {}
     if active_sprint and active_sprint is not True:
         sprint_sp = sprint_sp_stats([active_sprint.id], filtered_ids)
@@ -186,6 +205,7 @@ def aggregated_board():
         filter_epic_id=filter_epic_id,
         labels=labels,
         filter_label_id=filter_label_id,
+        comment_counts=comment_counts,
         today=date.today(),
     )
 

@@ -930,6 +930,20 @@ a:hover {
 }
 .pp-overdue { color: var(--pp-danger, #ef4444) !important; font-weight: 600; }
 
+.pp-comment-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--pp-text-secondary);
+    white-space: nowrap;
+}
+.pp-comment-count i {
+    font-size: 0.875rem;
+    color: var(--pp-primary);
+}
+
 /* Bulk operations */
 .pp-bulk-bar {
     position: fixed;
