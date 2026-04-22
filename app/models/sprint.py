@@ -37,6 +37,10 @@ class Sprint(db.Model):
         return [sp.project for sp in self.sprint_projects]
 
     @property
+    def is_completed(self):
+        return self.completed_at is not None
+
+    @property
     def committed_sp(self):
         return sum(i.story_points or 0 for i in self.work_items)
 

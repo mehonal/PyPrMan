@@ -18,6 +18,50 @@ from app.blueprints.helpers import (
 sprints_bp = Blueprint("sprints", __name__, url_prefix="/sprints")
 
 
+def _active_sprints_by_project(project_ids):
+    """Map project_id -> list of (sprint_id, sprint_name) for active sprints."""
+    if not project_ids:
+        return {}
+    rows = (
+        db.session.query(SprintProject.project_id, Sprint.id, Sprint.name)
+        .join(Sprint, Sprint.id == SprintProject.sprint_id)
+        .filter(
+            Sprint.is_active.is_(True),
+            Sprint.completed_at.is_(None),
+            SprintProject.project_id.in_(project_ids),
+        )
+        .all()
+    )
+    out = {}
+    for pid, sid, sname in rows:
+        out.setdefault(pid, []).append({"id": sid, "name": sname})
+    return out
+
+
+def _compute_start_conflicts(sprints, active_map):
+    """For each non-active, non-completed sprint, compute active-sprint conflicts.
+
+    Returns {sprint_id: [{project_key, project_name, active_sprint_name}, ...]}.
+    """
+    conflicts = {}
+    for s in sprints:
+        if s.is_active or s.completed_at is not None:
+            continue
+        items = []
+        for sp in s.sprint_projects:
+            for other in active_map.get(sp.project_id, []):
+                if other["id"] == s.id:
+                    continue
+                items.append({
+                    "project_key": sp.project.key,
+                    "project_name": sp.project.name,
+                    "active_sprint_name": other["name"],
+                })
+        if items:
+            conflicts[s.id] = items
+    return conflicts
+
+
 @sprints_bp.route("/")
 @auth_required()
 def list_sprints():
@@ -43,11 +87,14 @@ def list_sprints():
             sum(s.completed_sp_snapshot for s in completed_sprints)
             / len(completed_sprints)
         )
+    active_map = _active_sprints_by_project(project_ids)
+    start_conflicts = _compute_start_conflicts(sprints, active_map)
     return render_template(
         "sprints/list.html",
         sprints=sprints,
         avg_velocity=avg_velocity,
         velocity_sprint_count=len(completed_sprints),
+        start_conflicts=start_conflicts,
     )
 
 
@@ -101,6 +148,13 @@ def project_sprints(key):
             sum(sprint_stats[s.id]["completed_sp"] for s in completed_sprints)
             / len(completed_sprints)
         )
+    # Conflicts: use all projects in listed sprints so shared-sprint conflicts
+    # visible from a project-specific page include the other projects too.
+    all_sprint_project_ids = {
+        sp.project_id for s in sprints for sp in s.sprint_projects
+    }
+    active_map = _active_sprints_by_project(all_sprint_project_ids)
+    start_conflicts = _compute_start_conflicts(sprints, active_map)
     return render_template(
         "sprints/list.html",
         sprints=sprints,
@@ -108,6 +162,7 @@ def project_sprints(key):
         velocity_sprint_count=len(completed_sprints),
         project=project,
         sprint_stats=sprint_stats,
+        start_conflicts=start_conflicts,
     )
 
 
@@ -315,13 +370,25 @@ def start_sprint(sprint_id):
     ).first()
     if not membership:
         abort(403)
+    if sprint.completed_at is not None:
+        flash("Cannot start a completed sprint.", "danger")
+        return redirect(request.referrer or url_for("sprints.list_sprints"))
+    if sprint.is_active:
+        flash("Sprint is already active.", "warning")
+        return redirect(request.referrer or url_for("sprints.list_sprints"))
     sprint.initial_committed_sp = sum(
         i.story_points or 0 for i in sprint.work_items
     )
     sprint.is_active = True
     db.session.commit()
-    flash("Sprint started.", "success")
-    return redirect(url_for("sprints.list_sprints"))
+    if len(sprint_project_ids) > 1:
+        flash(
+            f"Sprint started across {len(sprint_project_ids)} projects.",
+            "success",
+        )
+    else:
+        flash("Sprint started.", "success")
+    return redirect(request.referrer or url_for("sprints.list_sprints"))
 
 
 @sprints_bp.route("/<int:sprint_id>/complete", methods=["POST"])
@@ -338,6 +405,42 @@ def complete_sprint(sprint_id):
     ).first()
     if not membership:
         abort(403)
+    if sprint.completed_at is not None:
+        flash("Sprint is already completed.", "warning")
+        return redirect(request.referrer or url_for("sprints.list_sprints"))
+    if not sprint.is_active:
+        flash("Only active sprints can be completed.", "danger")
+        return redirect(request.referrer or url_for("sprints.list_sprints"))
+
+    action = request.form.get("action", "leave")
+    target_sprint = None
+    if action == "move_to":
+        target_id = request.form.get("target_sprint_id", type=int)
+        if not target_id:
+            flash("Select a target sprint to move items to.", "danger")
+            return redirect(request.referrer or url_for("sprints.list_sprints"))
+        target_sprint = Sprint.query.options(
+            db.selectinload(Sprint.sprint_projects)
+        ).get(target_id)
+        if (
+            not target_sprint
+            or target_sprint.id == sprint.id
+            or target_sprint.completed_at is not None
+        ):
+            flash("Invalid target sprint.", "danger")
+            return redirect(request.referrer or url_for("sprints.list_sprints"))
+        target_project_ids = {sp.project_id for sp in target_sprint.sprint_projects}
+        missing = [pid for pid in sprint_project_ids if pid not in target_project_ids]
+        if missing:
+            flash(
+                "Target sprint must include all projects of the current sprint.",
+                "danger",
+            )
+            return redirect(request.referrer or url_for("sprints.list_sprints"))
+    elif action not in ("leave", "backlog"):
+        flash("Invalid action.", "danger")
+        return redirect(request.referrer or url_for("sprints.list_sprints"))
+
     sprint.committed_sp_snapshot = sum(
         i.story_points or 0 for i in sprint.work_items
     )
@@ -350,11 +453,53 @@ def complete_sprint(sprint_id):
             and i.project.count_cancelled_as_completed
         )
     )
+
+    def _is_incomplete(item):
+        cat = item.status.category
+        if cat == "done":
+            return False
+        if cat == "cancelled":
+            return False
+        return True
+
+    moved_count = 0
+    if action in ("backlog", "move_to"):
+        new_sprint_id = target_sprint.id if target_sprint else None
+        new_sprint_name = target_sprint.name if target_sprint else "None"
+        for item in sprint.work_items:
+            if not _is_incomplete(item):
+                continue
+            db.session.add(
+                ActivityLog(
+                    work_item=item,
+                    user_id=current_user.id,
+                    field_changed="sprint",
+                    old_value=sprint.name,
+                    new_value=new_sprint_name,
+                )
+            )
+            item.sprint_id = new_sprint_id
+            moved_count += 1
+
     sprint.completed_at = datetime.utcnow()
     sprint.is_active = False
     db.session.commit()
-    flash("Sprint completed.", "success")
-    return redirect(url_for("sprints.list_sprints"))
+
+    multi = len(sprint_project_ids) > 1
+    scope = f" across {len(sprint_project_ids)} projects" if multi else ""
+    if action == "backlog" and moved_count:
+        flash(
+            f"Sprint completed{scope}. {moved_count} unfinished item(s) moved to backlog.",
+            "success",
+        )
+    elif action == "move_to" and moved_count:
+        flash(
+            f"Sprint completed{scope}. {moved_count} unfinished item(s) moved to \"{target_sprint.name}\".",
+            "success",
+        )
+    else:
+        flash(f"Sprint completed{scope}.", "success")
+    return redirect(request.referrer or url_for("sprints.list_sprints"))
 
 
 @sprints_bp.route("/<int:sprint_id>/delete", methods=["POST"])

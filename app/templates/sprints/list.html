@@ -73,16 +73,22 @@
             <span class="pp-sp-badge" style="cursor:default; background:var(--pp-success-subtle, #dcfce7); color:var(--pp-success, #16a34a);">{{ sprint.completed_sp }} done</span>
             {% endif %}
             <div style="margin-left:auto;" class="d-flex gap-2">
-                {% if not sprint.is_active %}
-                <form method="POST" action="{{ url_for('sprints.start_sprint', sprint_id=sprint.id) }}" class="d-inline">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="pp-btn pp-btn-secondary pp-btn-sm" style="color:var(--pp-success, #16a34a);">Start</button>
-                </form>
+                {% if sprint.completed_at %}
+                <span class="pp-badge pp-badge-muted" title="Completed {{ sprint.completed_at.strftime('%b %d, %Y') }}" style="font-size:0.6875rem;">Completed</span>
+                {% elif not sprint.is_active %}
+                {% set conflicts = start_conflicts.get(sprint.id) if start_conflicts else None %}
+                <button type="button" class="pp-btn pp-btn-secondary pp-btn-sm js-start-sprint-btn" style="color:var(--pp-success, #16a34a);"
+                    data-sprint-id="{{ sprint.id }}"
+                    data-sprint-name="{{ sprint.name }}"
+                    data-action-url="{{ url_for('sprints.start_sprint', sprint_id=sprint.id) }}"
+                    data-project-keys="{{ sprint.projects|map(attribute='key')|join(',') }}"
+                    data-conflicts='{{ conflicts|tojson if conflicts else "[]" }}'
+                    {% if conflicts %}title="Active sprint conflict"{% endif %}>Start{% if conflicts %} <i class="bi bi-exclamation-triangle" style="color:var(--pp-warning, #d97706);"></i>{% endif %}</button>
                 {% else %}
-                <form method="POST" action="{{ url_for('sprints.complete_sprint', sprint_id=sprint.id) }}" class="d-inline">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="pp-btn pp-btn-secondary pp-btn-sm" style="color:var(--pp-warning, #d97706);">Complete</button>
-                </form>
+                <button type="button" class="pp-btn pp-btn-secondary pp-btn-sm js-complete-sprint-btn" style="color:var(--pp-warning, #d97706);"
+                    data-sprint-id="{{ sprint.id }}"
+                    data-sprint-name="{{ sprint.name }}"
+                    data-action-url="{{ url_for('sprints.complete_sprint', sprint_id=sprint.id) }}">Complete</button>
                 {% endif %}
                 <a href="{{ url_for('sprints.edit_sprint', sprint_id=sprint.id) }}" class="pp-btn pp-btn-ghost pp-btn-sm">
                     <i class="bi bi-pencil"></i>
@@ -98,6 +104,84 @@
     </div>
 </div>
 {% endfor %}
+
+<!-- Start Sprint Modal -->
+<div class="modal fade" id="startSprintModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" id="startSprintForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Start Sprint: <span id="startSprintName"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="startSprintSharedWarning" class="alert alert-warning" style="display:none; font-size:0.8125rem;"></div>
+                    <div id="startSprintConflictWarning" class="alert alert-danger" style="display:none; font-size:0.8125rem;"></div>
+                    <p id="startSprintConfirmText" style="font-size:0.875rem; margin:0;"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="pp-btn pp-btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="pp-btn pp-btn-primary" id="startSprintSubmit">Start Sprint</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Complete Sprint Modal -->
+<div class="modal fade" id="completeSprintModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" id="completeSprintForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Complete Sprint: <span id="completeSprintName"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="completeSprintLoading" style="font-size:0.875rem; color:var(--pp-text-muted);">Loading...</div>
+                    <div id="completeSprintContent" style="display:none;">
+                        <div id="completeSprintSharedWarning" class="alert alert-warning" style="display:none; font-size:0.8125rem;"></div>
+                        <div id="completeSprintSummary" style="font-size:0.875rem; margin-bottom:12px;"></div>
+                        <div id="completeSprintByProject" style="font-size:0.8125rem; margin-bottom:16px;"></div>
+                        <div id="completeSprintOptions">
+                            <p style="font-size:0.875rem; font-weight:600; margin-bottom:8px;">What should happen to unfinished items?</p>
+                            <div class="form-check" style="margin-bottom:6px;">
+                                <input class="form-check-input" type="radio" name="action" id="completeActionLeave" value="leave" checked>
+                                <label class="form-check-label" for="completeActionLeave">
+                                    Leave them in this sprint (they'll show as carryover)
+                                </label>
+                            </div>
+                            <div class="form-check" style="margin-bottom:6px;">
+                                <input class="form-check-input" type="radio" name="action" id="completeActionBacklog" value="backlog">
+                                <label class="form-check-label" for="completeActionBacklog">
+                                    Move them to the backlog
+                                </label>
+                            </div>
+                            <div class="form-check" style="margin-bottom:6px;">
+                                <input class="form-check-input" type="radio" name="action" id="completeActionMove" value="move_to">
+                                <label class="form-check-label" for="completeActionMove">
+                                    Move them to another sprint
+                                </label>
+                                <div id="completeTargetWrapper" style="margin-top:8px; margin-left:22px; display:none;">
+                                    <select class="form-select form-select-sm" name="target_sprint_id" id="completeTargetSelect">
+                                        <option value="">Select sprint...</option>
+                                    </select>
+                                    <div id="completeTargetEmpty" style="font-size:0.75rem; color:var(--pp-text-muted); margin-top:4px; display:none;">No eligible target sprint. A target must cover all projects of this sprint.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="pp-btn pp-btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="pp-btn pp-btn-primary" id="completeSprintSubmit">Complete Sprint</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 {% if not sprints %}
 <div class="pp-empty">
@@ -157,6 +241,152 @@
             },
         });
     });
+
+    // Start Sprint modal wiring
+    var startModalEl = document.getElementById('startSprintModal');
+    if (startModalEl) {
+        var startModal = new bootstrap.Modal(startModalEl);
+        var startForm = document.getElementById('startSprintForm');
+        var startNameEl = document.getElementById('startSprintName');
+        var startSharedEl = document.getElementById('startSprintSharedWarning');
+        var startConflictEl = document.getElementById('startSprintConflictWarning');
+        var startConfirmTextEl = document.getElementById('startSprintConfirmText');
+        var startSubmitBtn = document.getElementById('startSprintSubmit');
+
+        document.querySelectorAll('.js-start-sprint-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var sname = btn.getAttribute('data-sprint-name');
+                var actionUrl = btn.getAttribute('data-action-url');
+                var pkeys = (btn.getAttribute('data-project-keys') || '').split(',').filter(Boolean);
+                var conflicts = [];
+                try { conflicts = JSON.parse(btn.getAttribute('data-conflicts') || '[]'); } catch (e) { conflicts = []; }
+
+                startForm.action = actionUrl;
+                startNameEl.textContent = sname;
+
+                if (pkeys.length > 1) {
+                    startSharedEl.style.display = '';
+                    startSharedEl.innerHTML = '<i class="bi bi-info-circle"></i> <strong>Shared sprint.</strong> Starting will affect all ' + pkeys.length + ' projects: <strong>' + pkeys.join(', ') + '</strong>.';
+                } else {
+                    startSharedEl.style.display = 'none';
+                }
+
+                if (conflicts && conflicts.length) {
+                    startConflictEl.style.display = '';
+                    var rows = conflicts.map(function(c) {
+                        return '<li><span class="pp-badge-key">' + c.project_key + '</span> already has active sprint <strong>"' + c.active_sprint_name + '"</strong></li>';
+                    }).join('');
+                    startConflictEl.innerHTML = '<i class="bi bi-exclamation-triangle"></i> <strong>Active sprint conflict.</strong>' +
+                        '<ul style="margin:6px 0 6px 18px; padding:0;">' + rows + '</ul>' +
+                        'Consider completing the active sprint(s) first — starting this will leave multiple active sprints.';
+                    startSubmitBtn.textContent = 'Start Anyway';
+                } else {
+                    startConflictEl.style.display = 'none';
+                    startSubmitBtn.textContent = 'Start Sprint';
+                }
+
+                startConfirmTextEl.textContent = 'Start "' + sname + '"?';
+                startSubmitBtn.disabled = false;
+                startModal.show();
+            });
+        });
+
+        startForm.addEventListener('submit', function() {
+            startSubmitBtn.disabled = true;
+        });
+    }
+
+    // Complete Sprint modal wiring
+    var modalEl = document.getElementById('completeSprintModal');
+    if (modalEl) {
+        var bsModal = new bootstrap.Modal(modalEl);
+        var form = document.getElementById('completeSprintForm');
+        var nameEl = document.getElementById('completeSprintName');
+        var loadingEl = document.getElementById('completeSprintLoading');
+        var contentEl = document.getElementById('completeSprintContent');
+        var sharedWarnEl = document.getElementById('completeSprintSharedWarning');
+        var summaryEl = document.getElementById('completeSprintSummary');
+        var byProjectEl = document.getElementById('completeSprintByProject');
+        var targetWrapper = document.getElementById('completeTargetWrapper');
+        var targetSelect = document.getElementById('completeTargetSelect');
+        var targetEmpty = document.getElementById('completeTargetEmpty');
+        var moveRadio = document.getElementById('completeActionMove');
+        var submitBtn = document.getElementById('completeSprintSubmit');
+
+        document.querySelectorAll('.js-complete-sprint-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var sid = btn.getAttribute('data-sprint-id');
+                var sname = btn.getAttribute('data-sprint-name');
+                var actionUrl = btn.getAttribute('data-action-url');
+                form.action = actionUrl;
+                nameEl.textContent = sname;
+                loadingEl.style.display = '';
+                contentEl.style.display = 'none';
+                sharedWarnEl.style.display = 'none';
+                targetWrapper.style.display = 'none';
+                targetEmpty.style.display = 'none';
+                targetSelect.innerHTML = '<option value="">Select sprint...</option>';
+                form.querySelectorAll('input[name="action"]').forEach(function(r) { r.checked = r.value === 'leave'; });
+                submitBtn.disabled = false;
+                bsModal.show();
+
+                api.get('/api/sprints/' + sid + '/completion-options').then(function(data) {
+                    loadingEl.style.display = 'none';
+                    contentEl.style.display = '';
+
+                    if (data.sprint.project_count > 1) {
+                        sharedWarnEl.style.display = '';
+                        sharedWarnEl.innerHTML = '<i class="bi bi-exclamation-triangle"></i> <strong>Shared sprint.</strong> Completing will affect all ' + data.sprint.project_count + ' projects: <strong>' + data.sprint.project_keys.join(', ') + '</strong>.';
+                    }
+
+                    summaryEl.innerHTML = '<strong>' + data.incomplete_count + '</strong> unfinished item(s) (<strong>' + data.incomplete_sp + ' SP</strong>) in this sprint.';
+
+                    if (data.by_project && data.by_project.length > 1) {
+                        var rows = data.by_project.map(function(p) {
+                            return '<div><span class="pp-badge-key">' + p.key + '</span> ' + p.count + ' item(s), ' + p.sp + ' SP</div>';
+                        });
+                        byProjectEl.innerHTML = rows.join('');
+                    } else {
+                        byProjectEl.innerHTML = '';
+                    }
+
+                    if (data.target_sprints && data.target_sprints.length) {
+                        data.target_sprints.forEach(function(s) {
+                            var opt = document.createElement('option');
+                            opt.value = s.id;
+                            opt.textContent = s.name + (s.is_active ? ' (active)' : '');
+                            targetSelect.appendChild(opt);
+                        });
+                    } else {
+                        targetEmpty.style.display = '';
+                        moveRadio.disabled = true;
+                    }
+                }).catch(function() {
+                    loadingEl.textContent = 'Failed to load sprint details.';
+                });
+            });
+        });
+
+        form.querySelectorAll('input[name="action"]').forEach(function(r) {
+            r.addEventListener('change', function() {
+                targetWrapper.style.display = (r.value === 'move_to' && r.checked) ? '' : 'none';
+                if (r.value !== 'move_to') {
+                    var mv = document.querySelector('input[name="action"]:checked');
+                    if (mv && mv.value !== 'move_to') targetWrapper.style.display = 'none';
+                }
+            });
+        });
+
+        form.addEventListener('submit', function(e) {
+            var action = (form.querySelector('input[name="action"]:checked') || {}).value;
+            if (action === 'move_to' && !targetSelect.value) {
+                e.preventDefault();
+                alert('Select a target sprint to move items to.');
+                return false;
+            }
+            submitBtn.disabled = true;
+        });
+    }
 })();
 </script>
 {% endblock %}

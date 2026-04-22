@@ -77,7 +77,7 @@ var ppModal = {
 
     createItem: function (projectKey, defaults) {
         defaults = defaults || {};
-        api.get('/api/projects/' + projectKey + '/form-options').then(function (data) {
+        api.get('/api/projects/' + projectKey + '/form-options?context=new_item').then(function (data) {
             var defEpic = defaults.epic_id || null;
             var defSprint = defaults.sprint_id || null;
             var defAssignee = defaults.assignee_id || null;

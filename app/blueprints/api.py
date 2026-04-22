@@ -88,14 +88,45 @@ def search():
 @api_bp.route("/projects/<key>/form-options")
 @auth_required()
 def form_options(key):
+    from datetime import date
+
     project = _get_project(key)
     members = ProjectMembership.query.filter_by(project_id=project.id).options(db.joinedload(ProjectMembership.user)).all()
+
+    context = request.args.get("context", "")
+    today = date.today()
 
     sprints = (
         Sprint.query.join(SprintProject)
         .filter(SprintProject.project_id == project.id)
         .all()
     )
+
+    def _is_past(s):
+        return (
+            s.end_date is not None
+            and s.end_date < today
+            and not s.is_active
+        )
+
+    def _sort_key(s):
+        # Active first, then upcoming by start date ascending, then others.
+        if s.is_active:
+            bucket = 0
+        elif s.completed_at is None and not _is_past(s):
+            bucket = 1
+        else:
+            bucket = 2
+        start_ord = s.start_date.toordinal() if s.start_date else 10**7
+        return (bucket, start_ord, s.id)
+
+    sprints.sort(key=_sort_key)
+
+    if context == "new_item":
+        sprints = [
+            s for s in sprints
+            if s.completed_at is None and not _is_past(s)
+        ]
 
     return jsonify(
         {
@@ -116,7 +147,13 @@ def form_options(key):
                 for l in project.labels
             ],
             "sprints": [
-                {"id": s.id, "name": s.name, "is_active": s.is_active}
+                {
+                    "id": s.id,
+                    "name": s.name,
+                    "is_active": s.is_active,
+                    "is_completed": s.completed_at is not None,
+                    "is_past": _is_past(s),
+                }
                 for s in sprints
             ],
             "members": [
@@ -424,6 +461,79 @@ def delete_comment(item_id, comment_id):
     ))
     db.session.commit()
     return jsonify({"ok": True})
+
+
+@api_bp.route("/sprints/<int:sprint_id>/completion-options")
+@auth_required()
+def sprint_completion_options(sprint_id):
+    sprint = Sprint.query.options(
+        db.selectinload(Sprint.sprint_projects),
+        db.selectinload(Sprint.work_items).joinedload(WorkItem.status),
+        db.selectinload(Sprint.work_items).joinedload(WorkItem.project),
+    ).get_or_404(sprint_id)
+
+    sprint_project_ids = [sp.project_id for sp in sprint.sprint_projects]
+    membership = ProjectMembership.query.filter(
+        ProjectMembership.user_id == current_user.id,
+        ProjectMembership.project_id.in_(sprint_project_ids),
+    ).first()
+    if not membership:
+        abort(403)
+
+    incomplete_count = 0
+    incomplete_sp = 0
+    by_project = {}
+    for item in sprint.work_items:
+        cat = item.status.category
+        if cat in ("done", "cancelled"):
+            continue
+        incomplete_count += 1
+        incomplete_sp += item.story_points or 0
+        key = item.project.key
+        entry = by_project.setdefault(key, {"key": key, "name": item.project.name, "count": 0, "sp": 0})
+        entry["count"] += 1
+        entry["sp"] += item.story_points or 0
+
+    # Candidate target sprints: non-completed, != current, accessible to user,
+    # and must include all projects of the current sprint.
+    user_pids = set(user_project_ids())
+    required_pids = set(sprint_project_ids)
+
+    candidates = (
+        Sprint.query.join(SprintProject)
+        .filter(
+            Sprint.id != sprint.id,
+            Sprint.completed_at.is_(None),
+            SprintProject.project_id.in_(user_pids),
+        )
+        .options(db.selectinload(Sprint.sprint_projects))
+        .distinct()
+        .order_by(Sprint.start_date.desc().nullslast(), Sprint.id.desc())
+        .all()
+    )
+
+    target_sprints = []
+    for s in candidates:
+        pids = {sp.project_id for sp in s.sprint_projects}
+        if required_pids.issubset(pids):
+            target_sprints.append({
+                "id": s.id,
+                "name": s.name,
+                "is_active": bool(s.is_active),
+            })
+
+    return jsonify({
+        "sprint": {
+            "id": sprint.id,
+            "name": sprint.name,
+            "project_count": len(sprint_project_ids),
+            "project_keys": [sp.project.key for sp in sprint.sprint_projects],
+        },
+        "incomplete_count": incomplete_count,
+        "incomplete_sp": incomplete_sp,
+        "by_project": list(by_project.values()),
+        "target_sprints": target_sprints,
+    })
 
 
 @api_bp.route("/sprints/<int:sprint_id>/burndown")
