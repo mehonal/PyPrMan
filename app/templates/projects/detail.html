@@ -29,6 +29,9 @@
 </div>
 
 <div class="pp-quick-nav mb-4">
+    <a href="{{ url_for('main.project_dashboard', key=project.key) }}">
+        <i class="bi bi-speedometer2"></i><span>Dashboard</span>
+    </a>
     <a href="{{ url_for('board.project_board', key=project.key) }}">
         <i class="bi bi-kanban"></i><span>Board</span>
     </a>

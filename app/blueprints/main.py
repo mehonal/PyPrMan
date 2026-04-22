@@ -1,7 +1,7 @@
 from collections import defaultdict
 from datetime import date, timedelta
 
-from flask import Blueprint, redirect, render_template, url_for
+from flask import Blueprint, abort, redirect, render_template, url_for
 from flask_security import auth_required, current_user
 
 from app.extensions import db
@@ -28,9 +28,26 @@ def dashboard():
         for m in ProjectMembership.query.filter_by(user_id=current_user.id).all()
     ]
     if not user_project_ids:
-        return render_template("main/dashboard.html", empty=True)
+        return render_template("main/dashboard.html", empty=True, project=None)
 
     projects = Project.query.filter(Project.id.in_(user_project_ids)).all()
+    return _render_dashboard(projects, user_project_ids, project=None)
+
+
+@main_bp.route("/projects/<key>/dashboard")
+@auth_required()
+def project_dashboard(key):
+    project = Project.query.filter_by(key=key.upper()).first_or_404()
+    membership = ProjectMembership.query.filter_by(
+        user_id=current_user.id, project_id=project.id
+    ).first()
+    if not membership:
+        abort(403)
+    return _render_dashboard([project], [project.id], project=project)
+
+
+def _render_dashboard(projects, scoped_project_ids, project):
+    single = project is not None
 
     _eager = (
         db.joinedload(WorkItem.status),
@@ -43,7 +60,7 @@ def dashboard():
     my_items = (
         WorkItem.query.filter(
             WorkItem.assignee_id == current_user.id,
-            WorkItem.project_id.in_(user_project_ids),
+            WorkItem.project_id.in_(scoped_project_ids),
         )
         .join(WorkItem.status)
         .filter(Status.category.notin_(FINAL_CATEGORIES))
@@ -55,7 +72,7 @@ def dashboard():
 
     # Recent activity
     recent_items = (
-        WorkItem.query.filter(WorkItem.project_id.in_(user_project_ids))
+        WorkItem.query.filter(WorkItem.project_id.in_(scoped_project_ids))
         .options(*_eager)
         .order_by(WorkItem.updated_at.desc())
         .limit(10)
@@ -66,7 +83,7 @@ def dashboard():
     today = date.today()
     due_soon_items = (
         WorkItem.query.filter(
-            WorkItem.project_id.in_(user_project_ids),
+            WorkItem.project_id.in_(scoped_project_ids),
             WorkItem.due_date.isnot(None),
             WorkItem.due_date <= today + timedelta(days=7),
         )
@@ -80,7 +97,7 @@ def dashboard():
 
     # Summary counts
     total_open = (
-        WorkItem.query.filter(WorkItem.project_id.in_(user_project_ids))
+        WorkItem.query.filter(WorkItem.project_id.in_(scoped_project_ids))
         .join(WorkItem.status)
         .filter(Status.category.notin_(FINAL_CATEGORIES))
         .count()
@@ -88,7 +105,7 @@ def dashboard():
     my_open_count = (
         WorkItem.query.filter(
             WorkItem.assignee_id == current_user.id,
-            WorkItem.project_id.in_(user_project_ids),
+            WorkItem.project_id.in_(scoped_project_ids),
         )
         .join(WorkItem.status)
         .filter(Status.category.notin_(FINAL_CATEGORIES))
@@ -96,7 +113,7 @@ def dashboard():
     )
     overdue_count = (
         WorkItem.query.filter(
-            WorkItem.project_id.in_(user_project_ids),
+            WorkItem.project_id.in_(scoped_project_ids),
             WorkItem.due_date.isnot(None),
             WorkItem.due_date < today,
         )
@@ -109,7 +126,7 @@ def dashboard():
     active_sprints = (
         Sprint.query.join(SprintProject)
         .filter(
-            SprintProject.project_id.in_(user_project_ids),
+            SprintProject.project_id.in_(scoped_project_ids),
             Sprint.is_active.is_(True),
         )
         .distinct()
@@ -122,15 +139,29 @@ def dashboard():
     )
     sprint_summaries = []
     for sprint in active_sprints:
-        committed = sprint.committed_sp
-        completed = sprint.completed_sp
+        if single:
+            proj_items = [i for i in sprint.work_items if i.project_id == project.id]
+            committed = sum(i.story_points or 0 for i in proj_items)
+            completed = sum(
+                i.story_points or 0 for i in proj_items
+                if i.status.category == "done"
+                or (i.status.category == "cancelled" and project.count_cancelled_as_completed)
+            )
+            in_progress = sum(
+                i.story_points or 0 for i in proj_items
+                if i.status.category == "in_progress"
+            )
+        else:
+            committed = sprint.committed_sp
+            completed = sprint.completed_sp
+            in_progress = sprint.in_progress_sp
         pct = round((completed / committed) * 100) if committed > 0 else 0
         sprint_summaries.append({
             "id": sprint.id,
             "name": sprint.name,
             "committed": committed,
             "completed": completed,
-            "in_progress": sprint.in_progress_sp,
+            "in_progress": in_progress,
             "pct": pct,
             "end_date": sprint.end_date,
             "projects": [sp.project.key for sp in sprint.sprint_projects],
@@ -141,6 +172,8 @@ def dashboard():
     sp_by_project_id = defaultdict(int)
     for sprint in active_sprints:
         for item in sprint.work_items:
+            if single and item.project_id != project.id:
+                continue
             sp = item.story_points or 0
             sprint_sp_by_category[item.status.category] += sp
             sp_by_project_id[item.project_id] += sp
@@ -172,4 +205,5 @@ def dashboard():
         sprint_status_breakdown=sprint_status_breakdown,
         project_sp_breakdown=project_sp_breakdown,
         today=today,
+        project=project,
     )

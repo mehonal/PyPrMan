@@ -1,14 +1,25 @@
 {% extends "base.html" %}
-{% block title %}Dashboard - PyPrMan{% endblock %}
+{% block title %}{% if project %}{{ project.key }} Dashboard{% else %}Dashboard{% endif %} - PyPrMan{% endblock %}
 {% block breadcrumb %}
 <ol class="breadcrumb mb-0">
+    {% if project %}
+    <li class="breadcrumb-item"><a href="{{ url_for('projects.detail', key=project.key) }}">{{ project.key }}</a></li>
     <li class="breadcrumb-item active">Dashboard</li>
+    {% else %}
+    <li class="breadcrumb-item active">Dashboard</li>
+    {% endif %}
 </ol>
 {% endblock %}
 {% block actions %}
+{% if project %}
+<button class="pp-btn pp-btn-primary pp-btn-sm" onclick="ppModal.createItem('{{ project.key }}')">
+    <i class="bi bi-plus-lg"></i><span class="d-none d-sm-inline"> New Item</span>
+</button>
+{% else %}
 <a href="{{ url_for('projects.create_project') }}" class="pp-btn pp-btn-primary pp-btn-sm">
     <i class="bi bi-plus-lg"></i> New Project
 </a>
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -21,31 +32,34 @@
 {% else %}
 
 {# ── Stat cards ── #}
+{% set stat_col = 'col-6 col-lg-3' if not project else 'col-6 col-lg-4' %}
 <div class="row g-3 mb-4">
-    <div class="col-6 col-lg-3">
+    <div class="{{ stat_col }}">
         <div class="pp-stat-card">
             <div class="stat-label">Open Items</div>
             <div class="stat-value">{{ total_open }}</div>
         </div>
     </div>
-    <div class="col-6 col-lg-3">
+    <div class="{{ stat_col }}">
         <div class="pp-stat-card">
             <div class="stat-label">My Open Items</div>
             <div class="stat-value" style="color:var(--pp-primary);">{{ my_open_count }}</div>
         </div>
     </div>
-    <div class="col-6 col-lg-3">
+    <div class="{{ stat_col }}">
         <div class="pp-stat-card">
             <div class="stat-label">Overdue</div>
             <div class="stat-value" style="color:{% if overdue_count > 0 %}var(--pp-danger, #dc2626){% else %}var(--pp-success, #16a34a){% endif %};">{{ overdue_count }}</div>
         </div>
     </div>
-    <div class="col-6 col-lg-3">
+    {% if not project %}
+    <div class="{{ stat_col }}">
         <div class="pp-stat-card">
             <div class="stat-label">Projects</div>
             <div class="stat-value">{{ projects|length }}</div>
         </div>
     </div>
+    {% endif %}
 </div>
 
 {# ── Active sprints ── #}
@@ -182,7 +196,8 @@
                     <i class="{{ item.item_type.icon }}" style="color:{{ item.item_type.color }}; font-size:0.875rem;"></i>
                     <span class="item-title">{{ item.title }}</span>
                     <span class="item-meta">
-                        <span class="pp-badge-key">{{ item.project.key }}</span>
+                        {% if not project %}<span class="pp-badge-key">{{ item.project.key }}</span>{% endif %}
+                        <span class="pp-status-dot" style="background:{{ item.status.color }}" title="{{ item.status.name }}"></span>
                     </span>
                 </a>
                 {% endfor %}
@@ -250,7 +265,8 @@
     }
 
     // Velocity chart
-    api.get('/api/velocity').then(function(data) {
+    var velocityUrl = '/api/velocity'{% if project %} + '?project_id={{ project.id }}'{% endif %};
+    api.get(velocityUrl).then(function(data) {
         if (!data.sprints || data.sprints.length === 0) {
             var card = document.getElementById('velocityChart');
             if (card) card.parentElement.innerHTML = '<div class="pp-empty" style="padding:32px;"><p style="margin:0; font-size:0.8125rem;">No completed sprints yet.</p></div>';

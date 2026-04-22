@@ -65,6 +65,7 @@
                         <i class="bi bi-chevron-right" style="margin-left:auto; font-size:0.625rem; opacity:0.5;"></i>
                     </a>
                     <div class="pp-project-subnav {% if active_project and active_project.key == project.key %}open{% endif %}">
+                        <a href="{{ url_for('main.project_dashboard', key=project.key) }}"><i class="bi bi-speedometer2 me-1" style="font-size:0.75rem;"></i>Dashboard</a>
                         <a href="{{ url_for('board.project_board', key=project.key) }}"><i class="bi bi-kanban me-1" style="font-size:0.75rem;"></i>Board</a>
                         <a href="{{ url_for('backlog.project_backlog', key=project.key) }}"><i class="bi bi-list-task me-1" style="font-size:0.75rem;"></i>Backlog</a>
                         <a href="{{ url_for('epics.list_epics', key=project.key) }}"><i class="bi bi-collection me-1" style="font-size:0.75rem;"></i>Epics</a>
