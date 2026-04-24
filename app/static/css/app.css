@@ -703,6 +703,26 @@ a:hover {
     height: 10px;
 }
 
+.pp-status-pill {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    filter: saturate(1.1);
+}
+
+[data-bs-theme="dark"] .pp-status-pill {
+    filter: saturate(1.1) brightness(1.35);
+}
+
 /* ============================================
    Kanban Board
    ============================================ */

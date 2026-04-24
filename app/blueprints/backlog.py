@@ -7,10 +7,23 @@ from app.models.epic import Epic
 from app.models.label import Label
 from app.models.project import Project, ProjectMembership
 from app.models.sprint import Sprint, SprintProject
+from app.models.status import Status
 from app.models.work_item import WorkItem
 from app.blueprints.helpers import user_project_ids as user_project_ids, sprint_sp_stats
+from datetime import date as _date
 
 backlog_bp = Blueprint("backlog", __name__)
+
+_PRIORITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3, "none": 4}
+
+
+def _unified_sort_key(item):
+    return (
+        _PRIORITY_RANK.get(item.priority, 4),
+        item.due_date or _date.max,
+        item.project.key if item.project else "",
+        item.position or 0,
+    )
 
 
 @backlog_bp.route("/projects/<key>/backlog")
@@ -24,6 +37,7 @@ def project_backlog(key):
         abort(403)
 
     show_completed = request.args.get("show_completed", "0") == "1"
+    hide_done = request.args.get("hide_done", "0") == "1"
 
     sprints_query = (
         Sprint.query.join(SprintProject)
@@ -44,6 +58,11 @@ def project_backlog(key):
     filter_label_id = request.args.get("label_id", type=int)
     if filter_label_id:
         query = query.filter(WorkItem.labels.any(Label.id == filter_label_id))
+
+    if hide_done:
+        query = query.filter(
+            WorkItem.status.has(Status.category.notin_(["done", "cancelled"]))
+        )
 
     items = (
         query.options(
@@ -85,6 +104,7 @@ def project_backlog(key):
         labels=labels,
         filter_label_id=filter_label_id,
         show_completed=show_completed,
+        hide_done=hide_done,
         today=date.today(),
     )
 
@@ -102,6 +122,7 @@ def aggregated_backlog():
         filtered_ids = project_ids
 
     show_completed = request.args.get("show_completed", "0") == "1"
+    hide_done = request.args.get("hide_done", "0") == "1"
 
     sprints_query = (
         Sprint.query.join(SprintProject)
@@ -126,6 +147,11 @@ def aggregated_backlog():
     if filter_label_id:
         query = query.filter(WorkItem.labels.any(Label.id == filter_label_id))
 
+    if hide_done:
+        query = query.filter(
+            WorkItem.status.has(Status.category.notin_(["done", "cancelled"]))
+        )
+
     items = (
         query.options(
             db.joinedload(WorkItem.status),
@@ -134,9 +160,9 @@ def aggregated_backlog():
             db.joinedload(WorkItem.assignee),
             db.joinedload(WorkItem.project),
         )
-        .order_by(WorkItem.position)
         .all()
     )
+    items.sort(key=_unified_sort_key)
 
     sprint_ids = {s.id for s in sprints}
     sprint_items = {}
@@ -176,6 +202,7 @@ def aggregated_backlog():
         labels=labels,
         filter_label_id=filter_label_id,
         show_completed=show_completed,
+        hide_done=hide_done,
         today=date.today(),
     )
 

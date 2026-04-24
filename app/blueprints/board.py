@@ -15,6 +15,12 @@ from app.blueprints.helpers import user_project_ids as user_project_ids, sprint_
 
 board_bp = Blueprint("board", __name__)
 
+_PRIORITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3, "none": 4}
+
+
+def _board_sort_key(item):
+    return (_PRIORITY_RANK.get(item.priority, 4), item.position or 0, item.id)
+
 
 def _comment_counts(item_ids):
     if not item_ids:
@@ -68,7 +74,8 @@ def project_board(key):
     items = query.options(
         db.joinedload(WorkItem.parent),
         db.joinedload(WorkItem.labels),
-    ).order_by(WorkItem.position).all()
+    ).all()
+    items.sort(key=_board_sort_key)
 
     columns = {}
     for s in statuses:
@@ -154,21 +161,23 @@ def aggregated_board():
     items = query.options(
         db.joinedload(WorkItem.parent),
         db.joinedload(WorkItem.labels),
-    ).order_by(WorkItem.position).all()
+    ).all()
+    items.sort(key=_board_sort_key)
 
     category_order = ["todo", "in_progress", "done", "cancelled"]
-    seen_categories = {}
     columns = {}
     for s in all_statuses:
         cat = s.category
-        if cat not in seen_categories:
-            seen_categories[cat] = s
+        if cat not in columns:
             columns[cat] = {
                 "status": s,
                 "label": s.name,
                 "work_items": [],
             }
-        columns[cat]["work_items"].extend([i for i in items if i.status.category == cat and i.status_id == s.id])
+    for i in items:
+        cat = i.status.category
+        if cat in columns:
+            columns[cat]["work_items"].append(i)
 
     sorted_columns = {k: columns[k] for k in category_order if k in columns}
 
