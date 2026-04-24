@@ -99,7 +99,7 @@
                 <i class="{{ item.item_type.icon }}" style="color:{{ item.item_type.color }}; font-size:0.875rem;" aria-hidden="true"></i>
                 <span class="item-title">{{ item.title }}</span>
                 <span class="item-meta">
-                    <span class="pp-status-pill" style="background:{{ item.status.color }}22; border-color:{{ item.status.color }}66; color:{{ item.status.color }};" title="{{ item.status.name }}">{{ item.status.name }}</span>
+                    <span class="pp-status-pill" style="background:{{ item.status.color }}22; border-color:{{ item.status.color }}66; color:{{ item.status.color }};" title="{{ item.status.name }}" data-quick-status data-item-id="{{ item.id }}" data-project-key="{{ item.project.key }}" data-current="{{ item.status_id }}">{{ item.status.name }}</span>
                     <span class="pp-priority-badge pp-priority-{{ item.priority }}" title="{{ item.priority }}" data-quick-priority data-item-id="{{ item.id }}" data-current="{{ item.priority }}">
                         <i class="{{ item.priority_icon }}"></i>
                     </span>
@@ -137,7 +137,7 @@
                 <i class="{{ item.item_type.icon }}" style="color:{{ item.item_type.color }}; font-size:0.875rem;" aria-hidden="true"></i>
                 <span class="item-title">{{ item.title }}</span>
                 <span class="item-meta">
-                    <span class="pp-status-pill" style="background:{{ item.status.color }}22; border-color:{{ item.status.color }}66; color:{{ item.status.color }};" title="{{ item.status.name }}">{{ item.status.name }}</span>
+                    <span class="pp-status-pill" style="background:{{ item.status.color }}22; border-color:{{ item.status.color }}66; color:{{ item.status.color }};" title="{{ item.status.name }}" data-quick-status data-item-id="{{ item.id }}" data-project-key="{{ item.project.key }}" data-current="{{ item.status_id }}">{{ item.status.name }}</span>
                     <span class="pp-priority-badge pp-priority-{{ item.priority }}" title="{{ item.priority }}" data-quick-priority data-item-id="{{ item.id }}" data-current="{{ item.priority }}">
                         <i class="{{ item.priority_icon }}"></i>
                     </span>

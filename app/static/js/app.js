@@ -283,17 +283,25 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // ---- Quick Assignee Edit (board + backlog) ----
-    var membersCache = {};
+    var formOptionsCache = {};
 
-    function getMembers(projectKey, callback) {
-        if (membersCache[projectKey]) {
-            callback(membersCache[projectKey]);
+    function getFormOptions(projectKey, callback) {
+        if (formOptionsCache[projectKey]) {
+            callback(formOptionsCache[projectKey]);
             return;
         }
         api.get('/api/projects/' + projectKey + '/form-options').then(function (data) {
-            membersCache[projectKey] = data.members;
-            callback(data.members);
+            formOptionsCache[projectKey] = data;
+            callback(data);
         });
+    }
+
+    function getMembers(projectKey, callback) {
+        getFormOptions(projectKey, function (data) { callback(data.members); });
+    }
+
+    function getStatuses(projectKey, callback) {
+        getFormOptions(projectKey, function (data) { callback(data.statuses); });
     }
 
     document.addEventListener('click', function (e) {
@@ -349,6 +357,65 @@ document.addEventListener('DOMContentLoaded', function () {
 
             document.body.appendChild(dd);
             positionDropdown(dd, badge);
+
+            var backdrop = document.createElement('div');
+            backdrop.className = 'pp-quick-backdrop';
+            backdrop.addEventListener('click', function (ev) {
+                ev.preventDefault();
+                ev.stopPropagation();
+                closeQuickDropdown();
+            });
+            document.body.appendChild(backdrop);
+
+            function closeQuickDropdown() {
+                if (dd.parentNode) dd.parentNode.removeChild(dd);
+                if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+            }
+        });
+    });
+
+    // ---- Quick Status Edit (backlog) ----
+    document.addEventListener('click', function (e) {
+        var pill = e.target.closest('[data-quick-status]');
+        if (!pill) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (document.querySelector('.pp-quick-dropdown')) return;
+
+        var itemId = pill.dataset.itemId;
+        var projectKey = pill.dataset.projectKey;
+        var current = pill.dataset.current;
+
+        getStatuses(projectKey, function (statuses) {
+            var dd = document.createElement('div');
+            dd.className = 'pp-quick-dropdown';
+
+            statuses.forEach(function (s) {
+                var row = document.createElement('div');
+                row.className = 'pp-quick-option';
+                if (String(s.id) === String(current)) row.classList.add('selected');
+                var swatch = '<span class="pp-status-dot" style="background:' + s.color + '"></span> ';
+                row.innerHTML = swatch + s.name;
+                row.addEventListener('click', function (ev) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    api.patch('/api/items/' + itemId, {status_id: s.id}).then(function (res) {
+                        if (res.ok) {
+                            pill.textContent = s.name;
+                            pill.title = s.name;
+                            pill.style.background = s.color + '22';
+                            pill.style.borderColor = s.color + '66';
+                            pill.style.color = s.color;
+                            pill.dataset.current = s.id;
+                        }
+                    });
+                    closeQuickDropdown();
+                });
+                dd.appendChild(row);
+            });
+
+            document.body.appendChild(dd);
+            positionDropdown(dd, pill);
 
             var backdrop = document.createElement('div');
             backdrop.className = 'pp-quick-backdrop';

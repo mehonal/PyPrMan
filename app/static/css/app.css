@@ -719,6 +719,14 @@ a:hover {
     filter: saturate(1.1);
 }
 
+.pp-status-pill[data-quick-status] {
+    cursor: pointer;
+}
+
+.pp-status-pill[data-quick-status]:hover {
+    filter: saturate(1.2) brightness(1.05);
+}
+
 [data-bs-theme="dark"] .pp-status-pill {
     filter: saturate(1.1) brightness(1.35);
 }
