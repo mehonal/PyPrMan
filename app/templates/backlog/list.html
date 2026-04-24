@@ -12,46 +12,8 @@
 </ol>
 {% endblock %}
 {% block actions %}
-{% set keep_params %}{% if is_aggregated and filter_project_id %}&amp;project_id={{ filter_project_id }}{% endif %}{% if filter_epic_id %}&amp;epic_id={{ filter_epic_id }}{% endif %}{% if filter_label_id %}&amp;label_id={{ filter_label_id }}{% endif %}{% endset %}
-<button class="pp-btn {% if show_completed %}pp-btn-primary{% else %}pp-btn-secondary{% endif %} pp-btn-sm" onclick="location.href='?show_completed={{ '0' if show_completed else '1' }}&amp;hide_done={{ '1' if hide_done else '0' }}{{ keep_params }}'" title="{% if show_completed %}Hiding completed sprints{% else %}Showing completed sprints{% endif %}">
-    <i class="bi bi-archive"></i><span class="d-none d-sm-inline"> Completed</span>
-</button>
-<button class="pp-btn {% if hide_done %}pp-btn-primary{% else %}pp-btn-secondary{% endif %} pp-btn-sm" onclick="location.href='?hide_done={{ '0' if hide_done else '1' }}&amp;show_completed={{ '1' if show_completed else '0' }}{{ keep_params }}'" title="{% if hide_done %}Hiding done/cancelled items{% else %}Showing all items{% endif %}">
-    <i class="bi bi-eye-slash"></i><span class="d-none d-sm-inline"> Hide Done</span>
-</button>
-{% if is_aggregated and projects %}
-<div class="pp-filter-wrap">
-    <i class="bi bi-folder pp-filter-icon{% if filter_project_id %} active{% endif %}" title="Filter by project"></i>
-    <select class="pp-select pp-filter-select" onchange="location.href='?project_id='+this.value+'{% if filter_epic_id %}&amp;epic_id={{ filter_epic_id }}{% endif %}&amp;show_completed={{ '1' if show_completed else '0' }}&amp;hide_done={{ '1' if hide_done else '0' }}'">
-        <option value="">All Projects</option>
-        {% for p in projects %}
-        <option value="{{ p.id }}" {% if filter_project_id == p.id %}selected{% endif %}>{{ p.key }} - {{ p.name }}</option>
-        {% endfor %}
-    </select>
-</div>
-{% endif %}
-{% if epics %}
-<div class="pp-filter-wrap">
-    <i class="bi bi-collection pp-filter-icon{% if filter_epic_id %} active{% endif %}" title="Filter by epic"></i>
-    <select class="pp-select pp-filter-select" onchange="location.href='?epic_id='+this.value+'{% if is_aggregated and filter_project_id %}&amp;project_id={{ filter_project_id }}{% endif %}&amp;show_completed={{ '1' if show_completed else '0' }}&amp;hide_done={{ '1' if hide_done else '0' }}'">
-        <option value="">All Epics</option>
-        {% for epic in epics %}
-        <option value="{{ epic.id }}" {% if filter_epic_id == epic.id %}selected{% endif %}>{{ epic.name }}</option>
-        {% endfor %}
-    </select>
-</div>
-{% endif %}
-{% if labels %}
-<div class="pp-filter-wrap">
-    <i class="bi bi-tag pp-filter-icon{% if filter_label_id %} active{% endif %}" title="Filter by label"></i>
-    <select class="pp-select pp-filter-select" onchange="location.href='?label_id='+this.value+'{% if filter_epic_id %}&amp;epic_id={{ filter_epic_id }}{% endif %}{% if is_aggregated and filter_project_id %}&amp;project_id={{ filter_project_id }}{% endif %}&amp;show_completed={{ '1' if show_completed else '0' }}&amp;hide_done={{ '1' if hide_done else '0' }}'">
-        <option value="">All Labels</option>
-        {% for label in labels %}
-        <option value="{{ label.id }}" {% if filter_label_id == label.id %}selected{% endif %}>{{ label.name }}</option>
-        {% endfor %}
-    </select>
-</div>
-{% endif %}
+{% from "_partials/filters_popup.html" import filters_popup %}
+{{ filters_popup('backlog', is_aggregated=is_aggregated, filter_project_id=filter_project_id, projects=projects, epics=epics, filter_epic_id=filter_epic_id, labels=labels, filter_label_id=filter_label_id, show_completed=show_completed, hide_done=hide_done) }}
 <button class="pp-btn pp-btn-secondary pp-btn-sm" id="bulkToggleBtn" onclick="ppBulk.toggleMode()" title="Select items">
     <i class="bi bi-check2-square"></i><span class="d-none d-sm-inline"> Select</span>
 </button>

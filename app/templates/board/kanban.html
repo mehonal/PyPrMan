@@ -12,42 +12,8 @@
 </ol>
 {% endblock %}
 {% block actions %}
-<button class="pp-btn {% if sprint_filter_active %}pp-btn-primary{% else %}pp-btn-secondary{% endif %} pp-btn-sm" onclick="location.href='?sprint_filter={{ '0' if sprint_filter_active else '1' }}{% if is_aggregated and filter_project_id %}&amp;project_id={{ filter_project_id }}{% endif %}{% if filter_epic_id %}&amp;epic_id={{ filter_epic_id }}{% endif %}'" title="{% if sprint_filter_active %}Showing current sprint only{% else %}Showing all items{% endif %}">
-    <i class="bi bi-lightning"></i><span class="d-none d-sm-inline"> Sprint</span>
-</button>
-{% if epics %}
-<div class="pp-filter-wrap">
-    <i class="bi bi-collection pp-filter-icon{% if filter_epic_id %} active{% endif %}" title="Filter by epic"></i>
-    <select class="pp-select pp-filter-select" onchange="location.href='?epic_id='+this.value+'&amp;sprint_filter={{ '1' if sprint_filter_active else '0' }}{% if is_aggregated and filter_project_id %}&amp;project_id={{ filter_project_id }}{% endif %}'">
-        <option value="">All Epics</option>
-        {% for epic in epics %}
-        <option value="{{ epic.id }}" {% if filter_epic_id == epic.id %}selected{% endif %}>{{ epic.name }}</option>
-        {% endfor %}
-    </select>
-</div>
-{% endif %}
-{% if labels %}
-<div class="pp-filter-wrap">
-    <i class="bi bi-tag pp-filter-icon{% if filter_label_id %} active{% endif %}" title="Filter by label"></i>
-    <select class="pp-select pp-filter-select" onchange="location.href='?label_id='+this.value+'&amp;sprint_filter={{ '1' if sprint_filter_active else '0' }}{% if filter_epic_id %}&amp;epic_id={{ filter_epic_id }}{% endif %}{% if is_aggregated and filter_project_id %}&amp;project_id={{ filter_project_id }}{% endif %}'">
-        <option value="">All Labels</option>
-        {% for label in labels %}
-        <option value="{{ label.id }}" {% if filter_label_id == label.id %}selected{% endif %}>{{ label.name }}</option>
-        {% endfor %}
-    </select>
-</div>
-{% endif %}
-{% if is_aggregated and projects %}
-<div class="pp-filter-wrap">
-    <i class="bi bi-folder pp-filter-icon{% if filter_project_id %} active{% endif %}" title="Filter by project"></i>
-    <select class="pp-select pp-filter-select" onchange="location.href='?project_id='+this.value+'&amp;sprint_filter={{ '1' if sprint_filter_active else '0' }}'">
-        <option value="">All Projects</option>
-        {% for p in projects %}
-        <option value="{{ p.id }}" {% if filter_project_id == p.id %}selected{% endif %}>{{ p.key }} - {{ p.name }}</option>
-        {% endfor %}
-    </select>
-</div>
-{% endif %}
+{% from "_partials/filters_popup.html" import filters_popup %}
+{{ filters_popup('board', is_aggregated=is_aggregated, filter_project_id=filter_project_id, projects=projects, epics=epics, filter_epic_id=filter_epic_id, labels=labels, filter_label_id=filter_label_id, sprint_filter_active=sprint_filter_active) }}
 <button class="pp-btn pp-btn-secondary pp-btn-sm" id="bulkToggleBtn" onclick="ppBulk.toggleMode()" title="Select items">
     <i class="bi bi-check2-square"></i><span class="d-none d-sm-inline"> Select</span>
 </button>

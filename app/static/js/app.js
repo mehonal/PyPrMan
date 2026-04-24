@@ -433,6 +433,60 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    // ---- Unified filters popup ----
+    window.ppFilters = (function () {
+        var popup, btn, backdrop;
+        function toggle(e) {
+            if (e) e.stopPropagation();
+            popup = document.getElementById('filtersPopup');
+            btn = document.getElementById('filtersBtn');
+            if (!popup) return;
+            if (popup.hidden) open(); else close();
+        }
+        function open() {
+            popup.hidden = false;
+            if (btn) btn.setAttribute('aria-expanded', 'true');
+            position();
+            backdrop = document.createElement('div');
+            backdrop.className = 'pp-filters-backdrop';
+            backdrop.addEventListener('click', close);
+            document.body.appendChild(backdrop);
+            document.addEventListener('keydown', onKey);
+            window.addEventListener('resize', position);
+        }
+        function position() {
+            if (!popup || !btn) return;
+            if (window.matchMedia('(max-width: 576px)').matches) {
+                var r = btn.getBoundingClientRect();
+                popup.style.top = (r.bottom + 4) + 'px';
+                popup.style.left = '12px';
+                popup.style.right = '12px';
+            } else {
+                popup.style.top = '';
+                popup.style.left = '';
+                popup.style.right = '';
+            }
+        }
+        function close() {
+            if (!popup) popup = document.getElementById('filtersPopup');
+            if (!popup) return;
+            popup.hidden = true;
+            if (btn) btn.setAttribute('aria-expanded', 'false');
+            if (backdrop && backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+            backdrop = null;
+            document.removeEventListener('keydown', onKey);
+            window.removeEventListener('resize', position);
+        }
+        function onKey(e) { if (e.key === 'Escape') close(); }
+        function clear() {
+            if (!popup) popup = document.getElementById('filtersPopup');
+            if (!popup) return;
+            popup.querySelectorAll('select').forEach(function (s) { s.value = ''; });
+            popup.querySelectorAll('input[type="checkbox"]').forEach(function (c) { c.checked = false; });
+        }
+        return { toggle: toggle, close: close, clear: clear };
+    })();
+
     // ---- Auto-dismiss alerts after 5s ----
     document.querySelectorAll('.pp-alert').forEach(function (alert) {
         setTimeout(function () {

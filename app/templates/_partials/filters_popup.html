@@ -1,0 +1,86 @@
+{# Unified filters popup used by board and backlog.
+
+Params:
+  mode: 'board' or 'backlog'
+  is_aggregated, filter_project_id, projects
+  epics, filter_epic_id
+  labels, filter_label_id
+  sprint_filter_active (board only)
+  show_completed, hide_done (backlog only)
+#}
+{% macro filters_popup(mode, is_aggregated=false, filter_project_id=none, projects=none, epics=none, filter_epic_id=none, labels=none, filter_label_id=none, sprint_filter_active=false, show_completed=false, hide_done=false) %}
+{% set active_count = (1 if filter_project_id else 0) + (1 if filter_epic_id else 0) + (1 if filter_label_id else 0) %}
+<div class="pp-filters-wrap">
+    <button type="button" class="pp-btn {% if active_count %}pp-btn-primary{% else %}pp-btn-secondary{% endif %} pp-btn-sm" id="filtersBtn" onclick="ppFilters.toggle(event)" aria-haspopup="true" aria-expanded="false">
+        <i class="bi bi-funnel"></i><span class="d-none d-sm-inline"> Filters</span>
+        {% if active_count %}<span class="pp-badge pp-badge-primary" style="margin-left:4px;">{{ active_count }}</span>{% endif %}
+    </button>
+    <div class="pp-filters-popup" id="filtersPopup" hidden>
+        <form method="get" class="pp-filters-form" onsubmit="ppFilters.close()">
+            <div class="pp-filters-header">
+                <strong>Filters</strong>
+                <button type="button" class="pp-btn pp-btn-ghost pp-btn-sm" onclick="ppFilters.clear()" title="Clear all filters">Clear all</button>
+            </div>
+
+            {% if mode == 'board' %}
+            <label class="pp-filters-row pp-filters-toggle">
+                <input type="checkbox" name="sprint_filter" value="1" {% if sprint_filter_active %}checked{% endif %}>
+                <span><i class="bi bi-lightning"></i> Current sprint only</span>
+            </label>
+            <input type="hidden" name="sprint_filter" value="0">
+            {% endif %}
+
+            {% if mode == 'backlog' %}
+            <label class="pp-filters-row pp-filters-toggle">
+                <input type="checkbox" name="show_completed" value="1" {% if show_completed %}checked{% endif %}>
+                <span><i class="bi bi-archive"></i> Include completed sprints</span>
+            </label>
+            <label class="pp-filters-row pp-filters-toggle">
+                <input type="checkbox" name="hide_done" value="1" {% if hide_done %}checked{% endif %}>
+                <span><i class="bi bi-eye-slash"></i> Hide done / cancelled items</span>
+            </label>
+            {% endif %}
+
+            {% if is_aggregated and projects %}
+            <div class="pp-filters-row">
+                <label><i class="bi bi-folder"></i> Project</label>
+                <select class="pp-select" name="project_id">
+                    <option value="">All projects</option>
+                    {% for p in projects %}
+                    <option value="{{ p.id }}" {% if filter_project_id == p.id %}selected{% endif %}>{{ p.key }} - {{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+
+            {% if epics %}
+            <div class="pp-filters-row">
+                <label><i class="bi bi-collection"></i> Epic</label>
+                <select class="pp-select" name="epic_id">
+                    <option value="">All epics</option>
+                    {% for epic in epics %}
+                    <option value="{{ epic.id }}" {% if filter_epic_id == epic.id %}selected{% endif %}>{{ epic.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+
+            {% if labels %}
+            <div class="pp-filters-row">
+                <label><i class="bi bi-tag"></i> Label</label>
+                <select class="pp-select" name="label_id">
+                    <option value="">All labels</option>
+                    {% for label in labels %}
+                    <option value="{{ label.id }}" {% if filter_label_id == label.id %}selected{% endif %}>{{ label.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+
+            <div class="pp-filters-footer">
+                <button type="submit" class="pp-btn pp-btn-primary pp-btn-sm">Apply</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endmacro %}
