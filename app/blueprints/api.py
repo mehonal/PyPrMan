@@ -130,6 +130,7 @@ def form_options(key):
 
     return jsonify(
         {
+            "project": {"id": project.id, "key": project.key, "name": project.name},
             "statuses": [
                 {"id": s.id, "name": s.name, "color": s.color, "category": s.category, "is_default": s.is_default}
                 for s in project.statuses

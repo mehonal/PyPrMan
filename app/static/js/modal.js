@@ -162,8 +162,10 @@ var ppModal = {
                 html += '<input type="hidden" id="modalItemParent" value="' + defaults.parent_id + '">';
             }
 
+            var projectName = data.project ? data.project.name : '';
+            var baseTitle = defaults.parent_id ? 'New Subtask' : 'New Work Item';
             ppModal.show({
-                title: defaults.parent_id ? 'New Subtask' : 'New Work Item',
+                title: projectName ? projectName + ': ' + baseTitle : baseTitle,
                 body: html,
                 submitLabel: 'Create',
                 onSubmit: function () {
