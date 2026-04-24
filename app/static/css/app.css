@@ -73,6 +73,7 @@
     --pp-text-secondary: #94a3b8;
     --pp-text-muted: #64748b;
     --pp-primary-subtle: #312e81;
+    --pp-primary-on-subtle: #c7d2fe;
     --pp-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
     --pp-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
     --pp-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
@@ -730,6 +731,23 @@ a:hover {
 [data-bs-theme="dark"] .pp-status-pill {
     filter: saturate(1.1) brightness(1.35);
 }
+
+/* Dark mode readability overrides */
+[data-bs-theme="dark"] .pp-badge-primary,
+[data-bs-theme="dark"] .pp-sp-badge {
+    background: rgba(99, 102, 241, 0.2);
+    color: var(--pp-primary-on-subtle);
+}
+[data-bs-theme="dark"] .pp-sp-badge:hover {
+    background: var(--pp-primary);
+    color: #fff;
+}
+[data-bs-theme="dark"] .pp-priority-none { color: #94a3b8; }
+[data-bs-theme="dark"] .pp-priority-low { background: rgba(59, 130, 246, 0.18); color: #93c5fd; }
+[data-bs-theme="dark"] .pp-priority-medium { background: rgba(217, 119, 6, 0.2); color: #fcd34d; }
+[data-bs-theme="dark"] .pp-priority-high { background: rgba(234, 88, 12, 0.22); color: #fdba74; }
+[data-bs-theme="dark"] .pp-priority-critical { background: rgba(220, 38, 38, 0.22); color: #fca5a5; }
+[data-bs-theme="dark"] .pp-overdue { color: #fca5a5 !important; }
 
 /* ============================================
    Kanban Board
