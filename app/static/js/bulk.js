@@ -95,10 +95,10 @@ var ppBulk = (function () {
      */
     function computeIntersection() {
         var keys = Array.from(activeProjectKeys);
-        if (keys.length === 0) return { statuses: [], assignees: [], sprints: [] };
+        if (keys.length === 0) return { statuses: [], assignees: [], sprints: [], labels: [] };
 
         var first = projectOptionsCache[keys[0]];
-        if (!first) return { statuses: [], assignees: [], sprints: [] };
+        if (!first) return { statuses: [], assignees: [], sprints: [], labels: [] };
 
         // Statuses by name
         var statusNames = {};
@@ -107,7 +107,7 @@ var ppBulk = (function () {
         });
         for (var i = 1; i < keys.length; i++) {
             var opts = projectOptionsCache[keys[i]];
-            if (!opts) return { statuses: [], assignees: [], sprints: [] };
+            if (!opts) return { statuses: [], assignees: [], sprints: [], labels: [] };
             var thisNames = {};
             opts.statuses.forEach(function (s) { thisNames[s.name] = true; });
             Object.keys(statusNames).forEach(function (name) {
@@ -143,10 +143,25 @@ var ppBulk = (function () {
             });
         }
 
+        // Labels by name (per-project entity; intersect by name for cross-project)
+        var labelNames = {};
+        (first.labels || []).forEach(function (l) {
+            labelNames[l.name] = { name: l.name, color: l.color };
+        });
+        for (var i = 1; i < keys.length; i++) {
+            var opts = projectOptionsCache[keys[i]];
+            var thisLabels = {};
+            (opts.labels || []).forEach(function (l) { thisLabels[l.name] = true; });
+            Object.keys(labelNames).forEach(function (name) {
+                if (!thisLabels[name]) delete labelNames[name];
+            });
+        }
+
         return {
             statuses: Object.values(statusNames),
             assignees: Object.values(assigneeMap),
             sprints: Object.values(sprintMap),
+            labels: Object.values(labelNames),
         };
     }
 
@@ -236,6 +251,44 @@ var ppBulk = (function () {
                 assigneeSel.value = currentVal;
             }
         }
+
+        // Label dropdowns (add / remove) — values use name: prefix to support cross-project
+        ['bulkAddLabel', 'bulkRemoveLabel'].forEach(function (selId) {
+            var sel = document.getElementById(selId);
+            if (!sel) return;
+            var isAdd = selId === 'bulkAddLabel';
+            var placeholder = isAdd ? 'Add Label...' : 'Remove Label...';
+            var currentVal = sel.value;
+            sel.innerHTML = '<option value="">' + placeholder + '</option>';
+            if (intersection.labels.length === 0 && isCrossProject) {
+                sel.innerHTML = '<option value="">No common labels</option>';
+                sel.disabled = true;
+            } else {
+                sel.disabled = false;
+                intersection.labels.forEach(function (l) {
+                    var opt = document.createElement('option');
+                    opt.value = l.name;
+                    opt.textContent = l.name;
+                    sel.appendChild(opt);
+                });
+                if (isAdd) {
+                    // Preserve a pending "new:<name>" option if user created one
+                    if (currentVal && currentVal.indexOf('new:') === 0) {
+                        var pendingOpt = document.createElement('option');
+                        pendingOpt.value = currentVal;
+                        pendingOpt.textContent = '+ ' + currentVal.substring(4);
+                        sel.appendChild(pendingOpt);
+                    }
+                    var newOpt = document.createElement('option');
+                    newOpt.value = '__new__';
+                    newOpt.textContent = '+ New Label...';
+                    sel.appendChild(newOpt);
+                }
+            }
+            if (currentVal && sel.querySelector('option[value="' + currentVal + '"]')) {
+                sel.value = currentVal;
+            }
+        });
     }
 
     function apply() {
@@ -257,6 +310,17 @@ var ppBulk = (function () {
         if (assigneeVal) changes.assignee_id = assigneeVal === 'none' ? null : parseInt(assigneeVal);
         var priorityVal = document.getElementById('bulkPriority').value;
         if (priorityVal) changes.priority = priorityVal;
+        var addLabelEl = document.getElementById('bulkAddLabel');
+        var addLabelVal = addLabelEl ? addLabelEl.value : '';
+        if (addLabelVal === '__new__') return;
+        if (addLabelVal.indexOf('new:') === 0) {
+            changes.add_new_label_name = addLabelVal.substring(4);
+        } else if (addLabelVal) {
+            changes.add_label_name = addLabelVal;
+        }
+        var removeLabelEl = document.getElementById('bulkRemoveLabel');
+        var removeLabelVal = removeLabelEl ? removeLabelEl.value : '';
+        if (removeLabelVal) changes.remove_label_name = removeLabelVal;
 
         if (Object.keys(changes).length === 0) return;
 
@@ -296,6 +360,31 @@ var ppBulk = (function () {
     document.addEventListener('DOMContentLoaded', function () {
         var applyBtn = document.getElementById('bulkApply');
         if (applyBtn) applyBtn.addEventListener('click', apply);
+
+        var addLabelSel = document.getElementById('bulkAddLabel');
+        if (addLabelSel) {
+            addLabelSel.addEventListener('change', function () {
+                if (addLabelSel.value !== '__new__') return;
+                var name = (window.prompt('New label name:') || '').trim();
+                if (!name) {
+                    addLabelSel.value = '';
+                    return;
+                }
+                // Reuse an existing option if the name already matches one
+                var existing = Array.from(addLabelSel.options).find(function (o) {
+                    return o.value === name;
+                });
+                if (existing) {
+                    addLabelSel.value = name;
+                    return;
+                }
+                var pendingOpt = document.createElement('option');
+                pendingOpt.value = 'new:' + name;
+                pendingOpt.textContent = '+ ' + name;
+                addLabelSel.insertBefore(pendingOpt, addLabelSel.querySelector('option[value="__new__"]'));
+                addLabelSel.value = 'new:' + name;
+            });
+        }
     });
 
     return {

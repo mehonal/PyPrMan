@@ -1005,10 +1005,10 @@ a:hover {
 .pp-bulk-bar-inner {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
-    max-width: 960px;
     margin: 0 auto;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
 }
 .pp-bulk-count {
     font-size: 0.8125rem;
@@ -1018,7 +1018,9 @@ a:hover {
 .pp-bulk-select {
     font-size: 0.8125rem;
     padding: 4px 8px;
-    max-width: 150px;
+    max-width: 140px;
+    min-width: 0;
+    flex: 1 1 auto;
 }
 .pp-bulk-check {
     width: 18px;
@@ -1036,68 +1038,55 @@ a:hover {
     .pp-label-dropdown { min-width: 140px; }
 
     .pp-bulk-bar {
-        padding: 10px 12px;
-    }
-
-    .pp-bulk-bar-inner {
-        flex-direction: column;
-        gap: 6px;
-        align-items: stretch;
-    }
-
-    .pp-bulk-bar-inner > .pp-bulk-count {
-        text-align: center;
-        font-size: 0.75rem;
-    }
-
-    .pp-bulk-select {
-        max-width: none;
-        width: 100%;
-        font-size: 0.75rem;
-        padding: 6px 8px;
-        min-height: 36px;
-    }
-
-    .pp-bulk-bar-inner > .pp-btn {
-        min-height: 36px;
-        font-size: 0.75rem;
+        padding: 8px 10px;
     }
 
     .pp-bulk-bar-inner {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(4, 1fr);
         gap: 4px;
+        align-items: center;
+        flex-wrap: unset;
     }
 
     .pp-bulk-select {
+        grid-column: span 2;
         max-width: none;
         width: 100%;
+        min-width: 0;
+        flex: unset;
         font-size: 0.6875rem;
-        padding: 4px 6px;
-        min-height: 30px;
+        padding: 3px 4px;
+        padding-right: 18px;
+        min-height: 28px;
+        text-overflow: ellipsis;
+    }
+
+    .pp-bulk-count {
+        font-size: 0.75rem;
+        white-space: nowrap;
     }
 
     .pp-bulk-bar-inner > .pp-bulk-count {
-        grid-column: 1 / -1;
+        grid-column: span 1;
         order: 10;
         text-align: center;
-        font-size: 0.6875rem;
-        padding-top: 4px;
-        border-top: 1px solid var(--pp-border-light);
     }
 
     .pp-bulk-btn-row {
-        grid-column: 1 / -1;
-        order: 9;
+        grid-column: span 3;
+        order: 11;
         display: flex;
         gap: 4px;
     }
 
     .pp-bulk-btn-row > .pp-btn {
         flex: 1;
+        min-width: 0;
         justify-content: center;
-        min-height: 30px;
+        min-height: 28px;
         font-size: 0.6875rem;
+        padding: 3px 4px;
     }
 }
 

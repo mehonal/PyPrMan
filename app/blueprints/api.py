@@ -856,11 +856,17 @@ def bulk_update():
     if not item_ids or not changes:
         return jsonify({"error": "item_ids and changes required"}), 400
 
-    items = (
-        WorkItem.query.filter(WorkItem.id.in_(item_ids))
-        .options(db.joinedload(WorkItem.status), db.joinedload(WorkItem.assignee))
-        .all()
+    item_query = WorkItem.query.filter(WorkItem.id.in_(item_ids)).options(
+        db.joinedload(WorkItem.status),
+        db.joinedload(WorkItem.assignee),
     )
+    if (
+        changes.get("add_label_name")
+        or changes.get("remove_label_name")
+        or changes.get("add_new_label_name")
+    ):
+        item_query = item_query.options(db.selectinload(WorkItem.labels))
+    items = item_query.all()
     user_pids = set(user_project_ids())
 
     # Pre-fetch status-by-name lookup per project if cross-project status change
@@ -904,6 +910,41 @@ def bulk_update():
     status_by_id = None
     if "status_id" in changes:
         status_by_id = Status.query.get(changes["status_id"])
+
+    # Pre-fetch labels by name per project for add/remove label
+    add_label_name = changes.get("add_label_name")
+    remove_label_name = changes.get("remove_label_name")
+    add_new_label_name = (changes.get("add_new_label_name") or "").strip() or None
+    project_add_label = {}
+    project_remove_label = {}
+    project_new_label = {}
+    if add_label_name or remove_label_name:
+        names = [n for n in (add_label_name, remove_label_name) if n]
+        labels = Label.query.filter(
+            Label.name.in_(names),
+            Label.project_id.in_(user_pids),
+        ).all()
+        for lab in labels:
+            if lab.name == add_label_name:
+                project_add_label[lab.project_id] = lab
+            if lab.name == remove_label_name:
+                project_remove_label[lab.project_id] = lab
+
+    if add_new_label_name:
+        # Find existing labels with that name in relevant projects, create where missing.
+        item_project_ids = {it.project_id for it in items if it.project_id in user_pids}
+        existing = Label.query.filter(
+            Label.name == add_new_label_name,
+            Label.project_id.in_(item_project_ids),
+        ).all()
+        for lab in existing:
+            project_new_label[lab.project_id] = lab
+        for pid in item_project_ids:
+            if pid not in project_new_label:
+                lab = Label(project_id=pid, name=add_new_label_name)
+                db.session.add(lab)
+                project_new_label[pid] = lab
+        db.session.flush()
 
     updated = 0
     skipped = 0
@@ -970,6 +1011,21 @@ def bulk_update():
                     old_value=item.priority, new_value=new_p,
                 ))
                 item.priority = new_p
+
+        if add_label_name:
+            lab = project_add_label.get(item.project_id)
+            if lab and lab not in item.labels:
+                item.labels.append(lab)
+
+        if add_new_label_name:
+            lab = project_new_label.get(item.project_id)
+            if lab and lab not in item.labels:
+                item.labels.append(lab)
+
+        if remove_label_name:
+            lab = project_remove_label.get(item.project_id)
+            if lab and lab in item.labels:
+                item.labels.remove(lab)
 
         updated += 1
 
