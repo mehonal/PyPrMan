@@ -122,9 +122,12 @@
                     </button>
                     <div class="pp-search-field">
                         <i class="bi bi-search pp-search-icon"></i>
-                        <input type="text" class="pp-input pp-search-input" id="globalSearch" placeholder="Search items..." autocomplete="off">
+                        <input type="text" class="pp-input pp-search-input" id="globalSearch" placeholder="Search items, projects, epics… (try label:bug)" autocomplete="off">
                     </div>
                     <div class="pp-search-results" id="searchResults" style="display:none;"></div>
+                </div>
+                <div class="pp-topbar-actions">
+                    {% block actions %}{% endblock %}
                 </div>
                 <a href="{{ url_for('notifications.list_notifications') }}" class="pp-notif-bell" title="Notifications" aria-label="Notifications">
                     <i class="bi bi-bell"></i>
@@ -132,9 +135,6 @@
                     <span class="pp-notif-badge">{{ unread_notification_count if unread_notification_count < 100 else '99+' }}</span>
                     {% endif %}
                 </a>
-                <div class="pp-topbar-actions">
-                    {% block actions %}{% endblock %}
-                </div>
                 {% if sidebar_projects %}
                 <button class="pp-btn pp-btn-primary pp-btn-sm pp-quick-add-btn" id="quickAddBtn" title="New work item (N)">
                     <i class="bi bi-plus-lg"></i><span class="pp-quick-add-label"> New Item</span>

@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}Search{% if q %} – {{ q }}{% endif %} - PyPrMan{% endblock %}
+
+{% block breadcrumb %}
+<ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+    <li class="breadcrumb-item active">Search</li>
+</ol>
+{% endblock %}
+
+{% block actions %}
+<button class="pp-btn pp-btn-secondary pp-btn-sm" id="bulkToggleBtn" onclick="ppBulk.toggleMode()" title="Select items">
+    <i class="bi bi-check2-square"></i><span class="d-none d-sm-inline"> Select</span>
+</button>
+{% endblock %}
+
+{% block content %}
+<form method="get" action="{{ url_for('search.results_page') }}" class="pp-search-page-form">
+    <div class="pp-search-page-input">
+        <i class="bi bi-search"></i>
+        <input type="text" name="q" value="{{ q }}" class="pp-input" placeholder="Search items, projects, epics… (try label:bug)" autofocus>
+        <button type="submit" class="pp-btn pp-btn-primary pp-btn-sm">Search</button>
+    </div>
+</form>
+
+{% if q %}
+<div class="pp-search-page">
+    <aside class="pp-search-page-aside">
+        <div class="pp-card" id="filtersCard">
+            <div class="pp-card-header">
+                <i class="bi bi-funnel" style="color:var(--pp-text-secondary);"></i>
+                <strong>Filters</strong>
+                <a href="{{ url_for('search.results_page', q=q) }}" class="pp-link-muted" style="margin-left:auto; font-size:0.75rem;">Clear all</a>
+            </div>
+            <div class="pp-card-body p-0">
+                {% for section in sections %}
+                {% if section.options %}
+                <div class="pp-filter-section" data-section-key="{{ section.key }}">
+                    <button type="button" class="pp-filter-section-header" data-filter-toggle>
+                        <span>{{ section.title }}</span>
+                        {% if section.has_selection %}
+                        <a href="{{ url_for('search.results_page', **(request.args.to_dict(flat=False) | merge_drop(section.param))) }}"
+                           class="pp-filter-section-clear" onclick="event.stopPropagation()">clear</a>
+                        {% endif %}
+                        <i class="bi bi-chevron-down pp-filter-section-caret"></i>
+                    </button>
+                    <div class="pp-filter-section-body">
+                        {% for opt in section.options %}
+                        <a href="{{ toggle_url(section.param, opt.value) }}"
+                           class="pp-filter-row{% if opt.selected %} pp-filter-row-active{% endif %}">
+                            <i class="bi bi-{% if opt.selected %}check-square-fill{% else %}square{% endif %}"></i>
+                            <span class="pp-filter-row-label">
+                                {% if section.key == 'label_id' and opt.color %}
+                                <span class="pp-status-dot" style="background:{{ opt.color }}; width:8px; height:8px;"></span>
+                                {% elif section.key == 'epic_id' and opt.color %}
+                                <span class="pp-status-dot" style="background:{{ opt.color }}; width:8px; height:8px;"></span>
+                                {% elif section.key == 'type_id' and opt.icon %}
+                                <i class="{{ opt.icon }}" style="color:{{ opt.color }}; font-size:0.8125rem;"></i>
+                                {% endif %}
+                                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ opt.label }}</span>
+                            </span>
+                            <span class="pp-filter-count">{{ opt.count }}</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </aside>
+
+    <section class="pp-search-page-main">
+        {% if filters %}
+        <div class="pp-search-chips" style="padding:8px 0; border:none; background:transparent;">
+            {% for k, v in filters.items() %}
+            <span class="pp-search-chip">{{ k }}:{{ v }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="pp-search-summary">
+            <strong>{{ items|length }}</strong> {% if items|length == 1 %}item{% else %}items{% endif %} shown
+            {% if total and total != items|length %}<span class="pp-text-muted"> · {{ total }} match{% if total != 1 %}es{% endif %} total</span>{% endif %}
+        </div>
+
+        <div class="pp-card">
+            <div class="pp-card-body p-0">
+                {% for item in items %}
+                <div class="pp-list-item" data-item-id="{{ item.id }}" data-project-key="{{ item.project.key }}">
+                    <input type="checkbox" class="pp-bulk-check" style="display:none;" onchange="ppBulk.toggle({{ item.id }}, this.checked)" onclick="event.stopPropagation()">
+                    <a href="{{ url_for('work_items.detail', key=item.project.key, item_key=item.item_key) }}" class="pp-list-item-link">
+                        <span class="item-key">
+                            <span class="pp-badge-key" style="font-size:0.65rem;">{{ item.project.key }}</span>
+                            {{ item.item_key }}
+                        </span>
+                        <i class="{{ item.item_type.icon }}" style="color:{{ item.item_type.color }}; font-size:0.875rem;" aria-hidden="true"></i>
+                        <span class="item-title">{{ item.title }}</span>
+                        <span class="item-meta">
+                            <span class="pp-status-pill" style="background:{{ item.status.color }}22; border-color:{{ item.status.color }}66; color:{{ item.status.color }};" title="{{ item.status.name }}" data-quick-status data-item-id="{{ item.id }}" data-project-key="{{ item.project.key }}" data-current="{{ item.status_id }}">{{ item.status.name }}</span>
+                            <span class="pp-priority-badge pp-priority-{{ item.priority }}" title="{{ item.priority }}" data-quick-priority data-item-id="{{ item.id }}" data-current="{{ item.priority }}">
+                                <i class="{{ item.priority_icon }}"></i>
+                            </span>
+                            {% if item.epic %}<span class="pp-status-dot" style="background:{{ item.epic.color }}; width:8px; height:8px;" title="{{ item.epic.name }}"></span>{% endif %}
+                            <span class="pp-sp-badge" data-sp-edit data-item-id="{{ item.id }}" data-sp="{{ item.story_points if item.story_points is not none else '' }}" title="Story points">{{ item.story_points if item.story_points is not none else '—' }}</span>
+                            <span class="pp-badge pp-badge-muted pp-quick-assignee" data-quick-assignee data-item-id="{{ item.id }}" data-project-key="{{ item.project.key }}" data-current="{{ item.assignee_id or '' }}">{{ item.assignee.display_name[:8] if item.assignee else '—' }}</span>
+                        </span>
+                    </a>
+                </div>
+                {% endfor %}
+                {% if not items %}
+                <div class="pp-empty" style="padding:32px;">
+                    <p style="margin:0; font-size:0.875rem;">No items match your search.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+</div>
+{% else %}
+<div class="pp-empty" style="padding:48px;">
+    <p style="margin:0; font-size:0.875rem;">Enter a query to search across all your projects.</p>
+    <p style="margin:8px 0 0; font-size:0.75rem; color:var(--pp-text-muted);">Try filter tokens like <code>assignee:me</code>, <code>label:bug</code>, <code>status:done</code>, <code>priority:high</code>.</p>
+</div>
+{% endif %}
+
+{% include "_partials/bulk_actions.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/bulk.js') }}"></script>
+<script>
+(function () {
+    var isMobile = window.matchMedia('(max-width: 768px)').matches;
+    document.querySelectorAll('.pp-filter-section').forEach(function (section) {
+        // Default: collapsed on mobile unless the section has an active selection.
+        var hasSelection = section.querySelector('.pp-filter-row-active') !== null;
+        if (isMobile && !hasSelection) {
+            section.setAttribute('data-collapsed', 'true');
+        }
+        var btn = section.querySelector('[data-filter-toggle]');
+        if (btn) {
+            btn.addEventListener('click', function (e) {
+                if (e.target.closest('.pp-filter-section-clear')) return;
+                var collapsed = section.getAttribute('data-collapsed') === 'true';
+                section.setAttribute('data-collapsed', collapsed ? 'false' : 'true');
+            });
+        }
+    });
+})();
+</script>
+{% endblock %}

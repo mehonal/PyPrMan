@@ -46,6 +46,7 @@ def create_app(config_name=None):
     from app.blueprints.user_settings import user_settings_bp
     from app.blueprints.profiles import profiles_bp
     from app.blueprints.notifications import notifications_bp
+    from app.blueprints.search import search_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
@@ -60,6 +61,7 @@ def create_app(config_name=None):
     app.register_blueprint(user_settings_bp)
     app.register_blueprint(profiles_bp)
     app.register_blueprint(notifications_bp)
+    app.register_blueprint(search_bp)
 
     @app.errorhandler(403)
     def forbidden(e):

@@ -164,37 +164,142 @@ document.addEventListener('DOMContentLoaded', function () {
         if (searchWrapper) searchWrapper.classList.remove('open');
     }
 
+    function escapeHtml(s) {
+        if (s == null) return '';
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function quoteIfNeeded(v) {
+        return /\s/.test(v) ? '"' + v + '"' : v;
+    }
+
+    function renderRow(type, r) {
+        if (type === 'work_item') {
+            return '<a href="/projects/' + encodeURIComponent(r.project_key) + '/items/' + encodeURIComponent(r.item_key) + '" class="pp-search-result" data-nav="1">' +
+                '<i class="' + escapeHtml(r.type_icon) + '" style="color:' + escapeHtml(r.type_color) + '; font-size:0.875rem;"></i>' +
+                '<span class="result-key">' + escapeHtml(r.item_key) + '</span>' +
+                '<span class="result-title">' + escapeHtml(r.title) + '</span>' +
+                '<span class="pp-status-dot" style="background:' + escapeHtml(r.status_color) + '" title="' + escapeHtml(r.status) + '"></span>' +
+                '</a>';
+        }
+        if (type === 'project') {
+            return '<a href="/projects/' + encodeURIComponent(r.key) + '" class="pp-search-result" data-nav="1">' +
+                '<i class="bi bi-folder2" style="font-size:0.875rem;color:var(--pp-text-secondary);"></i>' +
+                '<span class="result-key">' + escapeHtml(r.key) + '</span>' +
+                '<span class="result-title">' + escapeHtml(r.name) + '</span>' +
+                '</a>';
+        }
+        if (type === 'epic') {
+            return '<a href="/projects/' + encodeURIComponent(r.project_key) + '/epics/' + r.id + '" class="pp-search-result" data-nav="1">' +
+                '<i class="bi bi-flag-fill" style="font-size:0.875rem;color:' + escapeHtml(r.color) + ';"></i>' +
+                '<span class="result-key">' + escapeHtml(r.project_key) + '</span>' +
+                '<span class="result-title">' + escapeHtml(r.name) + '</span>' +
+                '</a>';
+        }
+        if (type === 'sprint') {
+            var badge = r.is_active ? '<span class="pp-badge pp-badge-primary" style="font-size:0.65rem;">Active</span>'
+                      : r.is_completed ? '<span class="pp-badge" style="font-size:0.65rem;">Completed</span>' : '';
+            return '<a href="/sprints/' + r.id + '/detail" class="pp-search-result" data-nav="1">' +
+                '<i class="bi bi-calendar3" style="font-size:0.875rem;color:var(--pp-text-secondary);"></i>' +
+                '<span class="result-title">' + escapeHtml(r.name) + '</span>' +
+                badge +
+                '</a>';
+        }
+        if (type === 'user') {
+            return '<a href="#" class="pp-search-result" data-filter="assignee" data-value="' + escapeHtml(r.display_name) + '">' +
+                '<i class="bi bi-person-circle" style="font-size:0.875rem;color:var(--pp-text-secondary);"></i>' +
+                '<span class="result-title">' + escapeHtml(r.display_name) + '</span>' +
+                '<span class="pp-search-sub">' + escapeHtml(r.email) + '</span>' +
+                '</a>';
+        }
+        if (type === 'label') {
+            return '<a href="#" class="pp-search-result" data-filter="label" data-value="' + escapeHtml(r.name) + '">' +
+                '<span class="pp-status-dot" style="background:' + escapeHtml(r.color) + '"></span>' +
+                '<span class="result-title">' + escapeHtml(r.name) + '</span>' +
+                '</a>';
+        }
+        return '';
+    }
+
+    function renderChips(filters) {
+        var keys = Object.keys(filters || {});
+        if (!keys.length) return '';
+        var chips = keys.map(function (k) {
+            return '<span class="pp-search-chip" data-chip-key="' + escapeHtml(k) + '">' +
+                escapeHtml(k) + ':' + escapeHtml(filters[k]) +
+                '<i class="bi bi-x"></i></span>';
+        }).join('');
+        return '<div class="pp-search-chips">' + chips + '</div>';
+    }
+
+    function removeFilterToken(input, key) {
+        var re = new RegExp('(^|\\s)' + key + ':("[^"]+"|\\S+)', 'gi');
+        input.value = input.value.replace(re, ' ').replace(/\s+/g, ' ').trim();
+    }
+
+    function runSearch() {
+        var q = searchInput.value.trim();
+        if (q.length < 2) {
+            searchResults.style.display = 'none';
+            searchResults.innerHTML = '';
+            return;
+        }
+        api.get('/api/search?q=' + encodeURIComponent(q)).then(function (data) {
+            var html = renderChips(data.filters);
+            if (!data.groups || !data.groups.length) {
+                html += '<div class="pp-search-empty">No results found</div>';
+            } else {
+                html += data.groups.map(function (g) {
+                    var rows = g.results.map(function (r) { return renderRow(g.type, r); }).join('');
+                    return '<div class="pp-search-group">' +
+                        '<div class="pp-search-group-header">' + escapeHtml(g.label) + '</div>' +
+                        rows +
+                        '</div>';
+                }).join('');
+            }
+            html += '<a href="/search?q=' + encodeURIComponent(q) + '" class="pp-search-footer">See all results &rarr;</a>';
+            searchResults.innerHTML = html;
+            searchResults.style.display = 'block';
+        });
+    }
+
     if (searchInput && searchResults) {
         searchInput.addEventListener('input', function () {
             clearTimeout(searchTimer);
-            var q = searchInput.value.trim();
-            if (q.length < 2) {
-                searchResults.style.display = 'none';
-                return;
-            }
-            searchTimer = setTimeout(function () {
-                api.get('/api/search?q=' + encodeURIComponent(q)).then(function (data) {
-                    if (!data.results.length) {
-                        searchResults.innerHTML = '<div class="pp-search-empty">No results found</div>';
-                    } else {
-                        searchResults.innerHTML = data.results.map(function (r) {
-                            return '<a href="/projects/' + r.project_key + '/items/' + r.item_key + '" class="pp-search-result">' +
-                                '<i class="' + r.type_icon + '" style="color:' + r.type_color + '; font-size:0.875rem;"></i>' +
-                                '<span class="result-key">' + r.item_key + '</span>' +
-                                '<span class="result-title">' + r.title.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>' +
-                                '<span class="pp-status-dot" style="background:' + r.status_color + '" title="' + r.status + '"></span>' +
-                                '</a>';
-                        }).join('');
-                    }
-                    searchResults.style.display = 'block';
-                });
-            }, 250);
+            searchTimer = setTimeout(runSearch, 250);
         });
 
         searchInput.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') {
                 closeSearch();
                 searchInput.blur();
+            }
+        });
+
+        searchResults.addEventListener('click', function (e) {
+            var chip = e.target.closest('.pp-search-chip');
+            if (chip) {
+                e.preventDefault();
+                removeFilterToken(searchInput, chip.getAttribute('data-chip-key'));
+                searchInput.focus();
+                runSearch();
+                return;
+            }
+            var row = e.target.closest('.pp-search-result');
+            if (row && row.getAttribute('data-filter')) {
+                e.preventDefault();
+                var key = row.getAttribute('data-filter');
+                var val = row.getAttribute('data-value') || '';
+                removeFilterToken(searchInput, key);
+                var prefix = searchInput.value ? searchInput.value + ' ' : '';
+                searchInput.value = (prefix + key + ':' + quoteIfNeeded(val)).trim();
+                searchInput.focus();
+                runSearch();
             }
         });
 

@@ -19,6 +19,7 @@ from app.blueprints.helpers import (
     get_project as _get_project,
     user_project_ids as user_project_ids,
 )
+from app.blueprints import search as search_mod
 from app.validation import (
     validate_hex_color,
     validate_icon_class,
@@ -44,45 +45,48 @@ def _get_item(item_id):
 def search():
     q = request.args.get("q", "").strip()
     if not q or len(q) < 2:
-        return jsonify({"results": []})
+        return jsonify({"query": q, "filters": {}, "groups": []})
 
     project_ids = user_project_ids()
     if not project_ids:
-        return jsonify({"results": []})
+        return jsonify({"query": q, "filters": {}, "groups": []})
 
-    items = (
-        WorkItem.query.filter(
-            WorkItem.project_id.in_(project_ids),
-            db.or_(
-                WorkItem.title.ilike(f"%{q}%"),
-                WorkItem.item_key.ilike(f"%{q}%"),
-            ),
-        )
-        .options(
-            db.joinedload(WorkItem.project),
-            db.joinedload(WorkItem.status),
-            db.joinedload(WorkItem.item_type),
-        )
-        .order_by(WorkItem.updated_at.desc())
-        .limit(10)
-        .all()
-    )
+    free_text, filters = search_mod.parse_query(q)
 
-    return jsonify({
-        "results": [
-            {
-                "id": item.id,
-                "item_key": item.item_key,
-                "title": item.title,
-                "project_key": item.project.key,
-                "status": item.status.name,
-                "status_color": item.status.color,
-                "type_icon": item.item_type.icon,
-                "type_color": item.item_type.color,
-            }
-            for item in items
-        ]
-    })
+    has_free = bool(free_text)
+    has_filters = bool(filters)
+
+    groups = []
+
+    # Work items: run if we have either free text or any structured filter.
+    if has_free or has_filters:
+        items = search_mod.search_work_items(free_text, filters, project_ids)
+        if items:
+            groups.append({"type": "work_item", "label": "Work Items", "results": items})
+
+    # Entity searches use only the free-text portion.
+    if has_free:
+        projects = search_mod.search_projects(free_text, project_ids)
+        if projects:
+            groups.append({"type": "project", "label": "Projects", "results": projects})
+
+        epics = search_mod.search_epics(free_text, project_ids)
+        if epics:
+            groups.append({"type": "epic", "label": "Epics", "results": epics})
+
+        sprints = search_mod.search_sprints(free_text, project_ids)
+        if sprints:
+            groups.append({"type": "sprint", "label": "Sprints", "results": sprints})
+
+        users = search_mod.search_users(free_text, project_ids)
+        if users:
+            groups.append({"type": "user", "label": "People", "results": users})
+
+        labels = search_mod.search_labels(free_text, project_ids)
+        if labels:
+            groups.append({"type": "label", "label": "Labels", "results": labels})
+
+    return jsonify({"query": q, "filters": filters, "groups": groups})
 
 
 @api_bp.route("/projects/<key>/form-options")
