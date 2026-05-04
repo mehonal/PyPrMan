@@ -93,7 +93,14 @@
 {% if sprint.completed_at and committed_sp > 0 %}
 <div class="pp-card mb-4">
     <div class="pp-card-body d-flex align-items-center gap-4 flex-wrap" style="padding:12px 16px; font-size:0.8125rem;">
-        <span><strong>Completion:</strong> <span class="pp-sp-badge" style="cursor:default; background:var(--pp-success-subtle, #dcfce7); color:var(--pp-success, #16a34a);">{{ ((completed_sp / committed_sp) * 100)|round|int }}%</span> <span style="color:var(--pp-text-muted);">({{ completed_sp }} / {{ committed_sp }} SP)</span></span>
+        <span><strong>Completion:</strong>
+            {% if not project and sprint.initial_committed_sp %}
+            <span class="pp-sp-badge" style="cursor:default; background:var(--pp-success-subtle, #dcfce7); color:var(--pp-success, #16a34a);">{{ ((completed_sp / sprint.initial_committed_sp) * 100)|round|int }}%</span>
+            <span style="color:var(--pp-text-muted);">({{ completed_sp }} / {{ sprint.initial_committed_sp }} initial SP)</span>
+            {% endif %}
+            <span class="pp-sp-badge" style="cursor:default; background:var(--pp-success-subtle, #dcfce7); color:var(--pp-success, #16a34a);">{{ ((completed_sp / committed_sp) * 100)|round|int }}%</span>
+            <span style="color:var(--pp-text-muted);">({{ completed_sp }} / {{ committed_sp }} total SP)</span>
+        </span>
         {% if not project and sprint.initial_committed_sp is not none and sprint.initial_committed_sp != committed_sp %}
         <span><strong>Scope change:</strong>
             {% set scope_diff = committed_sp - sprint.initial_committed_sp %}

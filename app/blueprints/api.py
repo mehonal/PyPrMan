@@ -555,7 +555,19 @@ def sprint_burndown(sprint_id):
     if not membership:
         abort(403)
 
-    all_items = sprint.work_items
+    all_items = list(sprint.work_items)
+    if sprint.completed_at:
+        window_start = sprint.completed_at - timedelta(seconds=60)
+        moved_logs = ActivityLog.query.filter(
+            ActivityLog.field_changed == "sprint",
+            ActivityLog.old_value == sprint.name,
+            ActivityLog.created_at >= window_start,
+        ).all()
+        current_ids = {i.id for i in all_items}
+        moved_ids = {log.work_item_id for log in moved_logs} - current_ids
+        if moved_ids:
+            moved = WorkItem.query.filter(WorkItem.id.in_(moved_ids)).all()
+            all_items = all_items + moved
     project_id = request.args.get("project_id", type=int)
     if project_id:
         items = [i for i in all_items if i.project_id == project_id]

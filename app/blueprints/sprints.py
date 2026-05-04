@@ -186,7 +186,34 @@ def sprint_detail(sprint_id):
     if not membership:
         abort(403)
 
-    all_items = sprint.work_items
+    all_items = list(sprint.work_items)
+
+    # For completed sprints, items moved out at completion are no longer linked
+    # to the sprint. Recover them via the ActivityLog entries written during
+    # completion so charts/breakdowns reflect the sprint's historical scope.
+    if sprint.completed_at:
+        from datetime import timedelta
+        # Only logs written at sprint-completion time count as carryover.
+        # 60s window absorbs Python/DB clock skew (logs use server default now()).
+        window_start = sprint.completed_at - timedelta(seconds=60)
+        moved_logs = ActivityLog.query.filter(
+            ActivityLog.field_changed == "sprint",
+            ActivityLog.old_value == sprint.name,
+            ActivityLog.created_at >= window_start,
+        ).all()
+        current_ids = {i.id for i in all_items}
+        moved_ids = {log.work_item_id for log in moved_logs} - current_ids
+        if moved_ids:
+            moved_items = (
+                WorkItem.query.options(
+                    db.joinedload(WorkItem.status),
+                    db.joinedload(WorkItem.item_type),
+                    db.joinedload(WorkItem.project),
+                )
+                .filter(WorkItem.id.in_(moved_ids))
+                .all()
+            )
+            all_items = all_items + moved_items
 
     # Per-project filtering
     project_key = request.args.get("project")
@@ -216,6 +243,14 @@ def sprint_detail(sprint_id):
 
     committed_sp = sum(i.story_points or 0 for i in items)
     completed_sp = sum(i.story_points or 0 for i in completed_items)
+
+    # Prefer snapshots captured at completion time when available — they
+    # are authoritative even if items were later edited.
+    if sprint.completed_at and not project:
+        if sprint.committed_sp_snapshot is not None:
+            committed_sp = sprint.committed_sp_snapshot
+        if sprint.completed_sp_snapshot is not None:
+            completed_sp = sprint.completed_sp_snapshot
 
     # Project SP breakdown for multi-project sprints
     project_breakdown = []
