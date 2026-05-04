@@ -200,6 +200,14 @@ def edit_item(key, item_key):
 
         new_story_points = request.form.get("story_points", type=int)
 
+        if new_story_points != item.story_points:
+            _log_change(
+                item,
+                "story_points",
+                str(item.story_points) if item.story_points is not None else "unset",
+                str(new_story_points) if new_story_points is not None else "unset",
+            )
+
         item.title = new_title
         item.description = new_description
         item.item_type_id = new_type_id

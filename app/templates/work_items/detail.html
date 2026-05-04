@@ -168,7 +168,7 @@
                     {% if log.field_changed == 'comment' %}
                     {{ log.new_value }} a comment
                     {% else %}
-                    changed <em>{{ log.field_changed }}</em>
+                    changed <em>{{ log.field_changed.replace('_', ' ') }}</em>
                     {% if log.old_value %}from <span style="text-decoration:line-through;">{{ log.old_value }}</span>{% endif %}
                     to <strong style="color:var(--pp-text);">{{ log.new_value }}</strong>
                     {% endif %}
