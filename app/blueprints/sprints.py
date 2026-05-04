@@ -281,7 +281,7 @@ def sprint_detail(sprint_id):
     scope_changes = ActivityLog.query.filter(
         ActivityLog.work_item_id.in_([i.id for i in items]),
         ActivityLog.field_changed == "sprint",
-    ).order_by(ActivityLog.created_at).all() if items else []
+    ).order_by(ActivityLog.created_at.desc()).all() if items else []
 
     return render_template(
         "sprints/detail.html",
