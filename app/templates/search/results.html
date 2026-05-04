@@ -19,7 +19,15 @@
     <div class="pp-search-page-input">
         <i class="bi bi-search"></i>
         <input type="text" name="q" value="{{ q }}" class="pp-input" placeholder="Search items, projects, epics… (try label:bug)" autofocus>
+        {% for pid in request.args.getlist('project_id') %}
+        <input type="hidden" name="project_id" value="{{ pid }}">
+        {% endfor %}
         <button type="submit" class="pp-btn pp-btn-primary pp-btn-sm">Search</button>
+        {% if request.args.getlist('project_id') %}
+        <span class="pp-text-muted" style="font-size:0.75rem; align-self:center;">
+            <i class="bi bi-funnel-fill"></i> Project-scoped
+        </span>
+        {% endif %}
     </div>
 </form>
 
@@ -30,7 +38,7 @@
             <div class="pp-card-header">
                 <i class="bi bi-funnel" style="color:var(--pp-text-secondary);"></i>
                 <strong>Filters</strong>
-                <a href="{{ url_for('search.results_page', q=q) }}" class="pp-link-muted" style="margin-left:auto; font-size:0.75rem;">Clear all</a>
+                <a href="{{ url_for('search.results_page', q=q, project_id=request.args.getlist('project_id')) }}" class="pp-link-muted" style="margin-left:auto; font-size:0.75rem;">Clear all</a>
             </div>
             <div class="pp-card-body p-0">
                 {% for section in sections %}
