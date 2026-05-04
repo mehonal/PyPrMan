@@ -17,6 +17,8 @@ from app.blueprints.helpers import (
 
 sprints_bp = Blueprint("sprints", __name__, url_prefix="/sprints")
 
+_PRIORITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3, "none": 4}
+
 
 def _active_sprints_by_project(project_ids):
     """Map project_id -> list of (sprint_id, sprint_name) for active sprints."""
@@ -177,6 +179,10 @@ def sprint_detail(sprint_id):
         .joinedload(WorkItem.item_type),
         db.selectinload(Sprint.work_items)
         .joinedload(WorkItem.project),
+        db.selectinload(Sprint.work_items)
+        .joinedload(WorkItem.assignee),
+        db.selectinload(Sprint.work_items)
+        .joinedload(WorkItem.epic),
     ).get_or_404(sprint_id)
     sprint_project_ids = [sp.project_id for sp in sprint.sprint_projects]
     membership = ProjectMembership.query.filter(
@@ -232,6 +238,11 @@ def sprint_detail(sprint_id):
         if cat == "cancelled" and item.project.count_cancelled_as_completed:
             return True
         return False
+
+    items = sorted(
+        items,
+        key=lambda i: (_PRIORITY_RANK.get(i.priority, 99), i.position or 0, i.id),
+    )
 
     completed_items = [i for i in items if _is_completed(i)]
     # Cancelled items are intentionally terminal — not carryover even if uncounted.

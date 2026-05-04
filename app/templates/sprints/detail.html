@@ -194,16 +194,25 @@
     </div>
     <div class="pp-card-body p-0">
         {% for item in items %}
-        <a href="{{ url_for('work_items.detail', key=item.project.key, item_key=item.item_key) }}" class="pp-list-item">
-            <span class="item-key">{{ item.item_key }}</span>
-            <i class="{{ item.item_type.icon }}" style="color:{{ item.item_type.color }}; font-size:0.875rem;"></i>
-            <span class="item-title">{{ item.title }}</span>
-            <span class="item-meta">
-                <span class="pp-status-dot" style="background:{{ item.status.color }}" title="{{ item.status.name }}"></span>
-                <span class="pp-priority-badge pp-priority-{{ item.priority }}"><i class="{{ item.priority_icon }}"></i></span>
-                {% if item.story_points is not none %}<span class="pp-sp-badge">{{ item.story_points }}</span>{% endif %}
-            </span>
-        </a>
+        <div class="pp-list-item" data-item-id="{{ item.id }}" data-project-key="{{ item.project.key }}">
+            <a href="{{ url_for('work_items.detail', key=item.project.key, item_key=item.item_key) }}" class="pp-list-item-link">
+                <span class="item-key">
+                    <span class="pp-badge-key" style="font-size:0.65rem;">{{ item.project.key }}</span>
+                    {{ item.item_key }}
+                </span>
+                <i class="{{ item.item_type.icon }}" style="color:{{ item.item_type.color }}; font-size:0.875rem;" aria-hidden="true"></i>
+                <span class="item-title">{{ item.title }}</span>
+                <span class="item-meta">
+                    <span class="pp-status-pill" style="background:{{ item.status.color }}22; border-color:{{ item.status.color }}66; color:{{ item.status.color }};" title="{{ item.status.name }}" data-quick-status data-item-id="{{ item.id }}" data-project-key="{{ item.project.key }}" data-current="{{ item.status_id }}">{{ item.status.name }}</span>
+                    <span class="pp-priority-badge pp-priority-{{ item.priority }}" title="{{ item.priority }}" data-quick-priority data-item-id="{{ item.id }}" data-current="{{ item.priority }}">
+                        <i class="{{ item.priority_icon }}"></i>
+                    </span>
+                    {% if item.epic %}<span class="pp-status-dot" style="background:{{ item.epic.color }}; width:8px; height:8px;" title="{{ item.epic.name }}"></span>{% endif %}
+                    <span class="pp-sp-badge" data-sp-edit data-item-id="{{ item.id }}" data-sp="{{ item.story_points if item.story_points is not none else '' }}" title="Story points">{{ item.story_points if item.story_points is not none else '—' }}</span>
+                    <span class="pp-badge pp-badge-muted pp-quick-assignee" data-quick-assignee data-item-id="{{ item.id }}" data-project-key="{{ item.project.key }}" data-current="{{ item.assignee_id or '' }}">{{ item.assignee.display_name[:8] if item.assignee else '—' }}</span>
+                </span>
+            </a>
+        </div>
         {% endfor %}
         {% if not items %}
         <div class="pp-empty" style="padding:24px;"><p style="margin:0;">No items in this sprint.</p></div>
